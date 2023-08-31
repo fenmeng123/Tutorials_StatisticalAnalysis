@@ -1,0 +1,421 @@
+---
+title: "Untitled"
+author: "Kunru Song"
+date: "`r Sys.Date()`"
+output: 
+  html_notebook: 
+    toc: yes
+    toc_depth: 4
+  html_document:
+    toc: true
+    toc_depth: 4
+    number_sections: true
+    theme: paper
+runtime: shiny
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r load packages, include=F}
+# Load required libraries
+library(dagitty)
+library(shiny)
+library(plotly)
+```
+
+# Role of Covariates in Statistical Analysis
+
+Controlling for covariates in observational studies to establish a clear
+relationship between an independent variable (X) and a dependent
+variable (Y) is a crucial aspect of research. Usually, there are
+different types of covariates in data analysis, here's a concise summary
+of each type:
+
+1.  **Confounders:**
+
+-   **Rationale:** Confounders are variables that are associated with
+    both the independent variable (X) and the dependent variable (Y).
+    They create a spurious relationship between X and Y, leading to
+    biased estimates if not controlled for.
+-   **Influence on Relationship:** Confounders distort the true causal
+    relationship between X and Y, making it appear stronger, weaker, or
+    even reversing its direction.
+-   **Preventing Bias:** To prevent bias from confounders, control for
+    them in the analysis by including them as covariates in regression
+    models. Randomization (in experiments) and careful study design (in
+    observational studies) can help minimize confounding.
+
+```{r DAG Plots-Confounder, include=T, echo=F, fig.height=2,fig.width=4,fig.align='center'}
+dag_confounder <- dagitty("dag {
+  X [pos=\"-1,0\", label=\"X\"]
+  Confounder [pos=\"0,1\", label=\"Confounder\"]
+  Y [pos=\"1,0\", label=\"Y\"]
+  Confounder -> X
+  Confounder -> Y
+  X -> Y
+}")
+plot(dag_confounder, main = "Confounder Scenario")
+```
+
+2.  **Colliders:**
+
+-   **Rationale:** Colliders are variables that are affected by both X
+    and Y and can introduce spurious associations when conditioned on.
+-   **Influence on Relationship:** Conditioning on a collider creates an
+    artificial association between X and Y, even if there is no true
+    causal relationship between them.
+-   **Preventing Bias:** Recognize and avoid conditioning on colliders
+    when estimating causal effects. Conditioning on colliders can induce
+    selection bias and reverse causation.
+
+```{r DAG Plots-Collider, include=T, echo=F, fig.height=2,fig.width=4,fig.align='center'}
+dag_collider <- dagitty("dag {
+  X [pos=\"-1,0\", label=\"X\"]
+  Collider [pos=\"0,1\", label=\"Collider\"]
+  Y [pos=\"1,0\", label=\"Y\"]
+  X -> Collider
+  Y -> Collider
+  X -> Y
+}")
+plot(dag_collider, main = "Collider Scenario")
+```
+
+3.  **Mediators:**
+
+-   **Rationale:** Mediators are variables that lie on the causal
+    pathway between X and Y, helping to explain the mechanism of the
+    relationship.
+-   **Influence on Relationship:** Mediators partially or fully explain
+    the relationship between X and Y, contributing to the total effect.
+-   **Preventing Bias:** Identifying mediators requires understanding
+    the causal pathway. Mediation analysis involves decomposing the
+    total effect into direct and indirect effects.
+
+```{r DAG Plots-Mediator, include=T, echo=F, fig.height=2,fig.width=4,fig.align='center'}
+dag_mediator <- dagitty("dag {
+  X [pos=\"-1,0\", label=\"X\"]
+  Mediator [pos=\"0,1\", label=\"Mediator\"]
+  Y [pos=\"1,0\", label=\"Y\"]
+  X -> Mediator
+  Mediator -> Y
+  X -> Y
+}")
+plot(dag_mediator, main = "Mediator Scenario")
+```
+
+4.  **Moderator Variables:**
+
+-   **Rationale:** Moderator variables affect the strength or direction
+    of the relationship between X and Y without confounding or mediating
+    the relationship.
+-   **Influence on Relationship:** Moderators reveal how the
+    relationship between X and Y varies across different groups or
+    conditions.
+-   **Preventing Bias:** Evaluate interaction effects using interaction
+    terms in regression models to assess how the relationship changes
+    across levels of the moderator.
+
+```{r DAG Plots-Moderator, include=T, echo=F, fig.height=2,fig.width=4,fig.align='center'}
+dag_moderator <- dagitty("dag {
+  X [pos=\"-1,-1\", label=\"X\"]
+  Moderator [pos=\"-1,0\", label=\"Moderator\"]
+  X_By_M [pos=\"-1,1\"]
+  Y [pos=\"1,0\", label=\"Y\"]
+  X -> Y
+  Moderator -> Y
+  X_By_M -> Y
+}")
+plot(dag_moderator, main = "Moderator Scenario")
+```
+
+5.  **Proxies:**
+
+-   **Rationale:** Proxies are substitutes for unobservable variables
+    and are used to measure an underlying construct indirectly.
+-   **Influence on Relationship:** Proxies introduce measurement error
+    and may lead to biased estimates if not strongly correlated with the
+    underlying variable.
+-   **Preventing Bias:** Choose proxies that are highly correlated with
+    the underlying variable and validate their relationship with X and
+    Y.  
+
+```{r DAG Plots-Proxy, include=T, echo=F, fig.height=2,fig.width=4,fig.align='center'}
+dag_proxy <- dagitty("dag {
+  X [pos=\"-1,0\", label=\"X\"]
+  Proxy [pos=\"0,1\", label=\"Proxy\"]
+  Y [pos=\"1,0\", label=\"Y\"]
+  MeaError[pos=\"-1,0.5\"]
+  Proxy -> Y
+  X -> Y
+  MeaError -> Proxy
+  X -> Proxy
+}")
+plot(dag_proxy, main = "Proxy Scenario")
+```
+
+Understanding and appropriately handling these different types of
+covariates is essential for conducting valid and reliable observational
+data analysis, as each type introduces specific challenges and
+considerations that need to be addressed to draw accurate conclusions
+about causal relationships.
+
+# Influence of Covariates on Relationship We are Interested In
+
+Let's define the following variables:
+
+-   $X$ : The independent variable in our analysis
+-   $Y$ : The dependent variable in our analysis
+-   $C$ : The covariate we would like to investigate
+-   $X_{\text{basis}}$ : The baseline value of the independent variable
+    $X$
+-   $Y_{\text{basis}}$ : The baseline value of the dependent variable
+    $Y$
+-   $n$ : The number of observations in the dataset
+-   $\sigma$ : The standard deviation of the Gaussian noise term (Noise
+    Level)
+
+## Confounder
+
+The data generation process can be described as follows:
+
+1.  Generate the confounder variable $C$ from a standard normal
+    distribution: $$ C \sim \mathcal{N}(0, 1) $$
+
+2.  Generate the baseline value of the independent variable
+    $X_{\text{basis}}$ from a standard normal distribution:
+    $$ X_{\text{basis}} \sim \mathcal{N}(0, 1) $$
+
+3.  Generate the Gaussian noise term $\text{noise}$ from a normal
+    distribution with standard deviation $\sigma$:
+    $$ \text{noise} \sim \mathcal{N}(0, \sigma) $$
+
+4.  If noise is added ($\sigma > 0$):
+    $$ X = X_{\text{basis}} + \beta_C \times C + \text{noise} $$
+    $$ Y = \beta_X \times X + \beta_{CY} \times C + \text{noise} $$
+
+5.  If no noise is added ($\sigma = 0$):
+    $$ X = X_{\text{basis}} + \beta_C \times C $$
+    $$ Y = \beta_X \times X + \beta_{CY} \times C $$
+
+```{r Data Simulation-Confounder Effect, include=T, echo=F}
+ui <- fluidPage(
+  titlePanel("Simulated Confounder Effects"),
+  sidebarLayout(
+    sidebarPanel(
+      sliderInput("effect_X_Y", "True Effect X to Y:",
+                  min = 0, max = 1, value = 0.15, step = 0.01),
+      sliderInput("effect_C_Y", "True Effect C to Y:",
+                  min = 0, max = 1, value = 0.5, step = 0.01),
+      sliderInput("noise_level", "Noise Level:",
+                  min = 0, max = 1, value = 0, step = 0.01),
+      sliderInput("sample_size", "Sample Size:",
+                  min = 100, max = 5000, value = 500, step = 100)
+    ),
+    mainPanel(
+      plotlyOutput("confounder")
+    )
+  )
+)
+
+server <- function(input, output) {
+  output$confounder <- renderPlotly({
+    n <- input$sample_size
+    
+    true_effect_C_X <- seq(-1, 1, by = 0.01)
+    est_with_C <- numeric(length(true_effect_C_X))
+    est_without_C <- numeric(length(true_effect_C_X))
+    set.seed(123)
+    C <- rnorm(n)
+    X_basis <- rnorm(n)
+    noise = rnorm(n, sd = input$noise_level)
+    
+    for (i in seq_along(true_effect_C_X)) {
+      if (input$noise_level > 0) {
+        X <- X_basis + true_effect_C_X[i] * C + noise
+        Y <- input$effect_X_Y * X + input$effect_C_Y * C + noise
+      } else {
+        X <- X_basis + true_effect_C_X[i] * C
+        Y <- input$effect_X_Y * X + input$effect_C_Y * C
+      }
+      data <- data.frame(X, C, Y)
+      
+      model_with_C <- lm(Y ~ X + C, data = data)
+      model_without_C <- lm(Y ~ X, data = data)
+      
+      est_with_C[i] <- coef(model_with_C)["X"]
+      est_without_C[i] <- coef(model_without_C)["X"]
+    }
+    
+    plot_data <- data.frame(
+      True_Effect_C_to_X = true_effect_C_X,
+      Estimated_Effect_With_C = est_with_C,
+      Estimated_Effect_Without_C = est_without_C
+    )
+    
+    p <- ggplot(plot_data, aes(x = True_Effect_C_to_X)) +
+      geom_line(aes(y = Estimated_Effect_With_C, color = "With C"), linewidth = 1) +
+      geom_line(aes(y = Estimated_Effect_Without_C, color = "Without C"), linewidth = 1) +
+      geom_line(aes(y = input$effect_X_Y, color = "Ground Truth"), linetype = "dashed", linewidth = 1) +
+      labs(title = "Effect of Controlling Confounder (C) in Regression Model",
+           x = "True Effect of C to X",
+           y = "Estimated Effect of X to Y") +
+      scale_color_manual(values = c("With C" = "blue", "Without C" = "red", "Ground Truth" = "black")) +
+      theme_minimal()
+    
+    # Convert ggplot to plotly
+    ggplotly(p)
+  })
+  
+}
+
+shinyApp(ui = ui, server = server)
+```
+
+## Collider
+
+The data generation process can be described as follows:
+
+1.  Generate the baseline values of the independent variable
+    $X_{\text{basis}}$ and dependent variable $Y_{\text{basis}}$ from
+    standard normal distributions:
+    $$ X_{\text{basis}} \sim \mathcal{N}(0, 1) $$
+    $$ Y_{\text{basis}} \sim \mathcal{N}(0, 1) $$
+
+2.  Generate the Gaussian noise term $\text{noise}$ from a normal
+    distribution with standard deviation $\sigma$:
+    $$ \text{noise} \sim \mathcal{N}(0, \sigma) $$
+
+3.  If noise is added ($\sigma > 0$):
+    $$ X = X_{\text{basis}} + \text{noise} $$
+    $$ Y = Y_{\text{basis}} + \beta_X \times X + \text{noise} $$
+    $$ C = \beta_{XC} \times X + \beta_{YC} \times Y + \text{noise} $$
+
+4.  If no noise is added ($\sigma = 0$): $$ X = X_{\text{basis}} $$
+    $$ Y = Y_{\text{basis}} + \beta_X \times X $$
+    $$ C = \beta_{XC} \times X + \beta_{YC} \times Y $$
+
+```{r Data Simulation-Collider Effect, include=T, echo=F}
+library(shiny)
+library(plotly)
+library(ggplot2)
+
+ui <- fluidPage(
+  titlePanel("Simulated Collider Effects"),
+  sidebarLayout(
+    sidebarPanel(
+      sliderInput("effect_X_Y", "True Effect X to Y:",
+                  min = 0, max = 1, value = 0.15, step = 0.01),
+      sliderInput("effect_Y_C", "True Effect Y to C:",
+                  min = -1, max = 1, value = 0.5, step = 0.01),
+      sliderInput("noise_level", "Noise Level:",
+                  min = 0, max = 1, value = 0, step = 0.01),
+      sliderInput("sample_size", "Sample Size:",
+                  min = 100, max = 5000, value = 500, step = 100)
+    ),
+    mainPanel(
+      plotlyOutput("collider")
+    )
+  )
+)
+
+server <- function(input, output) {
+  output$collider <- renderPlotly({
+    n <- input$sample_size
+
+    true_effect_X_C <- seq(-1, 1, by = 0.01)
+    est_with_C <- numeric(length(true_effect_X_C))
+    est_without_C <- numeric(length(true_effect_X_C))
+    set.seed(123)
+    Y_basis <- rnorm(n)
+    X_basis <- rnorm(n)
+    noise <- rnorm(n, sd = input$noise_level)
+    
+    for (i in seq_along(true_effect_X_C)) {
+      if (input$noise_level > 0) {
+        X <- X_basis + noise
+        Y <- Y_basis + input$effect_X_Y * X +  noise
+        C <- true_effect_X_C[i] * X + input$effect_Y_C * Y + noise
+      } else {
+        X <- X_basis
+        Y <- Y_basis + input$effect_X_Y * X
+        C <- true_effect_X_C[i] * X + input$effect_Y_C * Y
+      }
+      data <- data.frame(X, C, Y)
+      
+      model_with_C <- lm(Y ~ X + C, data = data)
+      model_without_C <- lm(Y ~ X, data = data)
+      
+      est_with_C[i] <- coef(model_with_C)["X"]
+      est_without_C[i] <- coef(model_without_C)["X"]
+    }
+    
+    plot_data <- data.frame(
+      True_effect_X_C = true_effect_X_C,
+      Estimated_Effect_With_C = est_with_C,
+      Estimated_Effect_Without_C = est_without_C
+    )
+    
+    p <- ggplot(plot_data, aes(x = True_effect_X_C)) +
+      geom_line(aes(y = Estimated_Effect_With_C, color = "With C"), linewidth = 1) +
+      geom_line(aes(y = Estimated_Effect_Without_C, color = "Without C"), linewidth = 1) +
+      geom_line(aes(y = input$effect_X_Y, color = "Ground Truth"), linetype = "dashed", linewidth = 1) +
+      labs(title = "Effect of Controlling Collider in Regression Model",
+           x = "True Effect of C to X",
+           y = "Estimated Effect of X to Y") +
+      scale_color_manual(values = c("With C" = "blue", "Without C" = "red", "Ground Truth" = "black"),
+                         guide = guide_legend(override.aes = list(linetype = c("dashed", "solid", "solid")))) +
+      theme_minimal()
+    
+    # Convert ggplot to plotly
+    ggplotly(p)
+  })
+}
+shinyApp(ui = ui, server = server)
+```
+
+```{r}
+library(igraph)
+
+# Create a directed graph
+edges <- data.frame(
+  from = c("X_basis", "X", "Y_basis", "C", "Basis", "Noise"),
+  to = c("X", "Y", "Y", "Y", "X", "Y")
+)
+
+# Define node attributes
+node_attrs <- data.frame(
+  node = c("X_basis", "X", "Y_basis", "C", "Basis", "Noise","Y"),
+  shape = c("rectangle", "rectangle", "circle", "rectangle", "circle", "circle","rectangle"),
+  label = c("X_basis", "X", "Y_basis", "C", "Basis", "Noise (Gaussian)","Y"),
+  color = c("lightblue", "lightblue", "gray", "lightblue", "gray", "gray", "lightblue")
+)
+# Manually specify the coordinates for each node
+node_coords <- data.frame(
+  x = c(0, -1, 1, 0, 0, -1, 1),
+  y = c(0, -1, -1, -2, 2, 2, 2)
+)
+# Manually specify edge labels
+edge_labels <- c("", "beta_X", "", "beta_C", "", "sigma", "")
+
+# Create the graph
+graph <- graph_from_data_frame(edges, directed = TRUE)
+
+# Set node attributes
+V(graph)$shape <- node_attrs$shape
+V(graph)$label <- node_attrs$label
+V(graph)$color <- node_attrs$color
+V(graph)$size <- 50  # Adjust the node size
+
+
+
+
+
+# Plot the graph with manually specified coordinates and edge labels
+plot(graph,
+     layout = as.matrix(node_coords), 
+     vertex.size = V(graph)$size,
+     vertex.label.dist = 0.5,
+     edge.label = edge_labels)
+
+```
