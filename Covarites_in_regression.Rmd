@@ -1,5 +1,5 @@
 ---
-title: "Untitled"
+title: "Tutorial: Covariates in Statistical Analysis"
 author: "Kunru Song"
 date: "`r Sys.Date()`"
 output: 
@@ -22,6 +22,7 @@ editor_options:
 library(dagitty)
 library(shiny)
 library(plotly)
+library(igraph)
 ```
 
 # Role of Covariates in Statistical Analysis
@@ -138,7 +139,8 @@ plot(dag_moderator, main = "Moderator Scenario")
     underlying variable.
 -   **Preventing Bias:** Choose proxies that are highly correlated with
     the underlying variable and validate their relationship with X and
-    Y.  
+
+Y.  
 
 ```{r DAG Plots-Proxy, include=T, echo=F, fig.height=2,fig.width=4,fig.align='center'}
 dag_proxy <- dagitty("dag {
@@ -159,6 +161,8 @@ covariates is essential for conducting valid and reliable observational
 data analysis, as each type introduces specific challenges and
 considerations that need to be addressed to draw accurate conclusions
 about causal relationships.
+
+----
 
 # Influence of Covariates on Relationship We are Interested In
 
@@ -213,13 +217,14 @@ ui <- fluidPage(
                   min = 100, max = 5000, value = 500, step = 100)
     ),
     mainPanel(
-      plotlyOutput("confounder")
+      plotlyOutput("confounder_plot"),  # Adjust the height and width here
+      plotOutput("igraph_plot")
     )
   )
 )
 
 server <- function(input, output) {
-  output$confounder <- renderPlotly({
+  output$confounder_plot <- renderPlotly({
     n <- input$sample_size
     
     true_effect_C_X <- seq(-1, 1, by = 0.01)
@@ -266,10 +271,62 @@ server <- function(input, output) {
     # Convert ggplot to plotly
     ggplotly(p)
   })
-  
+   output$igraph_plot <- renderPlot(width = 500,height = 500,
+                                   {
+    # Create a directed graph
+    edges <- data.frame(
+      from = c("X_basis", "X", "C_basis", "C",  "C","Noise", "Noise"),
+      to =   c("X",       "Y", "C",       "X",  "Y","X",     "Y")
+    )
+    
+    # Define node attributes
+    node_attrs <- data.frame(
+      node = c("X_basis", "X", "C_basis", "C", "Noise","Y"),
+      shape = c("circle", "rectangle", "circle", "rectangle", "circle", "rectangle"),
+      label = c("S.N.D\nN(0,1)", "X", "S.N.D\nN(0,1)", "Confounder",
+                paste("Noise\nN(0,sigma)\nLevel=",input$noise_level),
+                "Y"),
+      color = c("gray", "lightblue", "gray", "lightblue", "gray", "lightblue")
+    )
+    # Manually specify the coordinates for each node
+    node_coords <- data.frame(
+      x = c(-1, -1,     0,  0,   0,   1),
+      y = c( 2,  0.5,  -3, -1.5,  -5,   0.5)
+    )
+    # Manually specify edge labels
+    edge_labels <- c(
+      "1",
+      paste("Beta_X_to_Y =", input$effect_X_Y),
+      "1",
+      "Beta_C_to_X:\nrange from -1 to 1",
+      paste("Beta_C_to_Y =", input$effect_C_Y),
+      "1",
+      "1"
+    )
+    
+    # Create the graph
+    graph <- graph_from_data_frame(edges, directed = TRUE)
+    
+    # Set node attributes
+    V(graph)$shape <- node_attrs$shape
+    V(graph)$label <- node_attrs$label
+    V(graph)$color <- node_attrs$color
+    V(graph)$size <- 50  # Adjust the node size
+    windowsFonts(HEL=windowsFont("Helvetica CE 55 Roman"),
+             RMN=windowsFont("Times New Roman"),
+             ARL=windowsFont("Arial"))
+    # Plot the graph with manually specified coordinates and updated edge labels
+    plot(graph,
+         layout = as.matrix(node_coords), 
+         vertex.label.family = "ARL",
+         vertex.size = V(graph)$size,
+         vertex.label.dist = 0,
+         edge.label = edge_labels,
+         edge.label.cex = 0.8,
+         margin = c(0,0,0,0))
+  })
 }
-
-shinyApp(ui = ui, server = server)
+shinyApp(ui = ui, server = server,options = list(height = 980))
 ```
 
 ## Collider
@@ -295,13 +352,9 @@ The data generation process can be described as follows:
     $$ Y = Y_{\text{basis}} + \beta_X \times X $$
     $$ C = \beta_{XC} \times X + \beta_{YC} \times Y $$
 
-```{r Data Simulation-Collider Effect, include=T, echo=F}
-library(shiny)
-library(plotly)
-library(ggplot2)
-
+```{r, include=T, echo=F}
 ui <- fluidPage(
-  titlePanel("Simulated Collider Effects"),
+  titlePanel("Interactive Plot with Graph"),
   sidebarLayout(
     sidebarPanel(
       sliderInput("effect_X_Y", "True Effect X to Y:",
@@ -314,15 +367,18 @@ ui <- fluidPage(
                   min = 100, max = 5000, value = 500, step = 100)
     ),
     mainPanel(
-      plotlyOutput("collider")
+      plotlyOutput("collider_plot"),  # Adjust the height and width here
+      plotOutput("igraph_plot")
     )
   )
 )
 
 server <- function(input, output) {
-  output$collider <- renderPlotly({
+  
+  # Define collider effect plot
+  output$collider_plot <- renderPlotly({
     n <- input$sample_size
-
+    
     true_effect_X_C <- seq(-1, 1, by = 0.01)
     est_with_C <- numeric(length(true_effect_X_C))
     est_without_C <- numeric(length(true_effect_X_C))
@@ -334,7 +390,7 @@ server <- function(input, output) {
     for (i in seq_along(true_effect_X_C)) {
       if (input$noise_level > 0) {
         X <- X_basis + noise
-        Y <- Y_basis + input$effect_X_Y * X +  noise
+        Y <- Y_basis + input$effect_X_Y * X + noise
         C <- true_effect_X_C[i] * X + input$effect_Y_C * Y + noise
       } else {
         X <- X_basis
@@ -370,52 +426,81 @@ server <- function(input, output) {
     # Convert ggplot to plotly
     ggplotly(p)
   })
+  
+  output$igraph_plot <- renderPlot(width = 500,height = 500,
+                                   {
+    # Create a directed graph
+    edges <- data.frame(
+      from = c("X_basis", "X", "Y_basis", "Y",  "Noise","X", "Noise", "Noise"),
+      to =   c("X",       "Y", "Y",       "C",  "Y",    "C", "X",     "C")
+    )
+    
+    # Define node attributes
+    node_attrs <- data.frame(
+      node = c("X_basis", "X", "Y_basis", "Y", "Noise","C"),
+      shape = c("circle", "rectangle", "circle", "rectangle", "circle", "rectangle"),
+      label = c("S.N.D\nN(0,1)", "X", "S.N.D\nN(0,1)", "Y",
+                paste("Noise\nN(0,sigma)\nLevel=",input$noise_level),
+                "Collider"),
+      color = c("gray", "lightblue", "gray", "lightblue", "gray", "lightblue")
+    )
+    # Manually specify the coordinates for each node
+    node_coords <- data.frame(
+      x = c(-1, -1,  0,  0, -0.5, -0.5),
+      y = c( 1,  0,  1,  0, 2, -1)
+    )
+    # Manually specify edge labels
+    edge_labels <- c(
+      "1",
+      paste("Beta_X_to_Y =", input$effect_X_Y),
+      "1",
+      paste("Beta_Y_to_C =", input$effect_Y_C),
+      "1",
+      "Beta_X_to_C:\nrange from -1 to 1",
+      "1",
+      "1"
+    )
+    
+    # Create the graph
+    graph <- graph_from_data_frame(edges, directed = TRUE)
+    
+    # Set node attributes
+    V(graph)$shape <- node_attrs$shape
+    V(graph)$label <- node_attrs$label
+    V(graph)$color <- node_attrs$color
+    V(graph)$size <- 50  # Adjust the node size
+    windowsFonts(HEL=windowsFont("Helvetica CE 55 Roman"),
+             RMN=windowsFont("Times New Roman"),
+             ARL=windowsFont("Arial"))
+    # Plot the graph with manually specified coordinates and updated edge labels
+    plot(graph,
+         layout = as.matrix(node_coords), 
+         vertex.label.family = "ARL",
+         vertex.size = V(graph)$size,
+         vertex.label.dist = 0,
+         edge.label = edge_labels,
+         edge.label.cex = 0.8,
+         edge.label.x = c(-1, -0.5,  NULL,  NULL, NULL, NULL),
+         edge.label.y = c(0, NULL,  NULL,  NULL, NULL, NULL),
+         margin = c(0,0,0,0))
+  })
 }
-shinyApp(ui = ui, server = server)
+
+shinyApp(ui = ui, server = server, options = list(height = 980))
 ```
 
-```{r}
-library(igraph)
+## Mediator
 
-# Create a directed graph
-edges <- data.frame(
-  from = c("X_basis", "X", "Y_basis", "C", "Basis", "Noise"),
-  to = c("X", "Y", "Y", "Y", "X", "Y")
-)
+----
 
-# Define node attributes
-node_attrs <- data.frame(
-  node = c("X_basis", "X", "Y_basis", "C", "Basis", "Noise","Y"),
-  shape = c("rectangle", "rectangle", "circle", "rectangle", "circle", "circle","rectangle"),
-  label = c("X_basis", "X", "Y_basis", "C", "Basis", "Noise (Gaussian)","Y"),
-  color = c("lightblue", "lightblue", "gray", "lightblue", "gray", "gray", "lightblue")
-)
-# Manually specify the coordinates for each node
-node_coords <- data.frame(
-  x = c(0, -1, 1, 0, 0, -1, 1),
-  y = c(0, -1, -1, -2, 2, 2, 2)
-)
-# Manually specify edge labels
-edge_labels <- c("", "beta_X", "", "beta_C", "", "sigma", "")
+# Statistical Controlling of Covariates
 
-# Create the graph
-graph <- graph_from_data_frame(edges, directed = TRUE)
+In regression analysis, controlling for covariates means that you include them in the model as independent variables. The purpose of controlling for covariates is to remove the effect of the covariate on the dependent variable so that you can more accurately estimate the effect of the independent variable on the dependent variable. This is done by adding the covariate to the regression model as an independent variable. When you control for a covariate in a regression model, you are essentially holding it constant while examining the relationship between the independent variable and the dependent variable¹.
 
-# Set node attributes
-V(graph)$shape <- node_attrs$shape
-V(graph)$label <- node_attrs$label
-V(graph)$color <- node_attrs$color
-V(graph)$size <- 50  # Adjust the node size
+Directly controlling for a covariate in a regression model is different from regressing the independent variable on the covariate and then using the residuals as a new independent variable in the regression model. This method is called residualization or residual-based control. Residualization is used when you want to examine the relationship between two variables while controlling for a third variable. The difference between residualization and direct control is that residualization removes only the linear relationship between the independent variable and the covariate, whereas direct control removes all of the effects of the covariate on the dependent variable².
 
+(1) [2112.00672] Controlling for multiple covariates - arXiv.org. https://arxiv.org/abs/2112.00672.
+(2) Controlling covariates in linear regression in R - Cross Validated. https://stats.stackexchange.com/questions/89032/controlling-covariates-in-linear-regression-in-r.
+(3) ANCOVA: Uses, Assumptions & Example - Statistics By Jim. https://statisticsbyjim.com/anova/ancova/.
 
-
-
-
-# Plot the graph with manually specified coordinates and edge labels
-plot(graph,
-     layout = as.matrix(node_coords), 
-     vertex.size = V(graph)$size,
-     vertex.label.dist = 0.5,
-     edge.label = edge_labels)
-
-```
+## Direct Controlling & Residualization
