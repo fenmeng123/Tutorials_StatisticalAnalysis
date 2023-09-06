@@ -23,6 +23,11 @@ library(dagitty)
 library(shiny)
 library(plotly)
 library(igraph)
+library(shinymaterial)
+# Load the necessary library for pairs plot
+library(GGally)
+library(ggplot2)
+library(gridExtra)
 ```
 
 # Role of Covariates in Statistical Analysis
@@ -36,16 +41,16 @@ of each type:
 1.  **Confounders:**
 
 -   **Rationale:** Confounders are variables that are associated with
-    both the independent variable (X) and the dependent variable (Y).
-    They create a spurious relationship between X and Y, leading to
-    biased estimates if not controlled for.
+both the independent variable (X) and the dependent variable (Y).
+They create a spurious relationship between X and Y, leading to
+biased estimates if not controlled for.
 -   **Influence on Relationship:** Confounders distort the true causal
-    relationship between X and Y, making it appear stronger, weaker, or
-    even reversing its direction.
+relationship between X and Y, making it appear stronger, weaker, or
+even reversing its direction.
 -   **Preventing Bias:** To prevent bias from confounders, control for
-    them in the analysis by including them as covariates in regression
-    models. Randomization (in experiments) and careful study design (in
-    observational studies) can help minimize confounding.
+them in the analysis by including them as covariates in regression
+models. Randomization (in experiments) and careful study design (in
+observational studies) can help minimize confounding.
 
 ```{r DAG Plots-Confounder, include=T, echo=F, fig.height=2,fig.width=4,fig.align='center'}
 dag_confounder <- dagitty("dag {
@@ -62,13 +67,13 @@ plot(dag_confounder, main = "Confounder Scenario")
 2.  **Colliders:**
 
 -   **Rationale:** Colliders are variables that are affected by both X
-    and Y and can introduce spurious associations when conditioned on.
+and Y and can introduce spurious associations when conditioned on.
 -   **Influence on Relationship:** Conditioning on a collider creates an
-    artificial association between X and Y, even if there is no true
-    causal relationship between them.
+artificial association between X and Y, even if there is no true
+causal relationship between them.
 -   **Preventing Bias:** Recognize and avoid conditioning on colliders
-    when estimating causal effects. Conditioning on colliders can induce
-    selection bias and reverse causation.
+when estimating causal effects. Conditioning on colliders can induce
+selection bias and reverse causation.
 
 ```{r DAG Plots-Collider, include=T, echo=F, fig.height=2,fig.width=4,fig.align='center'}
 dag_collider <- dagitty("dag {
@@ -85,13 +90,13 @@ plot(dag_collider, main = "Collider Scenario")
 3.  **Mediators:**
 
 -   **Rationale:** Mediators are variables that lie on the causal
-    pathway between X and Y, helping to explain the mechanism of the
-    relationship.
+pathway between X and Y, helping to explain the mechanism of the
+relationship.
 -   **Influence on Relationship:** Mediators partially or fully explain
-    the relationship between X and Y, contributing to the total effect.
+the relationship between X and Y, contributing to the total effect.
 -   **Preventing Bias:** Identifying mediators requires understanding
-    the causal pathway. Mediation analysis involves decomposing the
-    total effect into direct and indirect effects.
+the causal pathway. Mediation analysis involves decomposing the
+total effect into direct and indirect effects.
 
 ```{r DAG Plots-Mediator, include=T, echo=F, fig.height=2,fig.width=4,fig.align='center'}
 dag_mediator <- dagitty("dag {
@@ -108,14 +113,14 @@ plot(dag_mediator, main = "Mediator Scenario")
 4.  **Moderator Variables:**
 
 -   **Rationale:** Moderator variables affect the strength or direction
-    of the relationship between X and Y without confounding or mediating
-    the relationship.
+of the relationship between X and Y without confounding or mediating
+the relationship.
 -   **Influence on Relationship:** Moderators reveal how the
-    relationship between X and Y varies across different groups or
-    conditions.
+relationship between X and Y varies across different groups or
+conditions.
 -   **Preventing Bias:** Evaluate interaction effects using interaction
-    terms in regression models to assess how the relationship changes
-    across levels of the moderator.
+terms in regression models to assess how the relationship changes
+across levels of the moderator.
 
 ```{r DAG Plots-Moderator, include=T, echo=F, fig.height=2,fig.width=4,fig.align='center'}
 dag_moderator <- dagitty("dag {
@@ -133,12 +138,12 @@ plot(dag_moderator, main = "Moderator Scenario")
 5.  **Proxies:**
 
 -   **Rationale:** Proxies are substitutes for unobservable variables
-    and are used to measure an underlying construct indirectly.
+and are used to measure an underlying construct indirectly.
 -   **Influence on Relationship:** Proxies introduce measurement error
-    and may lead to biased estimates if not strongly correlated with the
-    underlying variable.
+and may lead to biased estimates if not strongly correlated with the
+underlying variable.
 -   **Preventing Bias:** Choose proxies that are highly correlated with
-    the underlying variable and validate their relationship with X and
+the underlying variable and validate their relationship with X and
 
 Y.  
 
@@ -162,7 +167,7 @@ data analysis, as each type introduces specific challenges and
 considerations that need to be addressed to draw accurate conclusions
 about causal relationships.
 
-----
+------------------------------------------------------------------------
 
 # Influence of Covariates on Relationship We are Interested In
 
@@ -172,35 +177,35 @@ Let's define the following variables:
 -   $Y$ : The dependent variable in our analysis
 -   $C$ : The covariate we would like to investigate
 -   $X_{\text{basis}}$ : The baseline value of the independent variable
-    $X$
+$X$
 -   $Y_{\text{basis}}$ : The baseline value of the dependent variable
-    $Y$
+$Y$
 -   $n$ : The number of observations in the dataset
 -   $\sigma$ : The standard deviation of the Gaussian noise term (Noise
-    Level)
+Level)
 
 ## Confounder
 
 The data generation process can be described as follows:
 
 1.  Generate the confounder variable $C$ from a standard normal
-    distribution: $$ C \sim \mathcal{N}(0, 1) $$
+distribution: $$ C \sim \mathcal{N}(0, 1) $$
 
 2.  Generate the baseline value of the independent variable
-    $X_{\text{basis}}$ from a standard normal distribution:
-    $$ X_{\text{basis}} \sim \mathcal{N}(0, 1) $$
+$X_{\text{basis}}$ from a standard normal distribution:
+$$ X_{\text{basis}} \sim \mathcal{N}(0, 1) $$
 
 3.  Generate the Gaussian noise term $\text{noise}$ from a normal
-    distribution with standard deviation $\sigma$:
-    $$ \text{noise} \sim \mathcal{N}(0, \sigma) $$
+distribution with standard deviation $\sigma$:
+$$ \text{noise} \sim \mathcal{N}(0, \sigma) $$
 
 4.  If noise is added ($\sigma > 0$):
-    $$ X = X_{\text{basis}} + \beta_C \times C + \text{noise} $$
-    $$ Y = \beta_X \times X + \beta_{CY} \times C + \text{noise} $$
+$$ X = X_{\text{basis}} + \beta_C \times C + \text{noise} $$
+$$ Y = \beta_X \times X + \beta_{CY} \times C + \text{noise} $$
 
 5.  If no noise is added ($\sigma = 0$):
-    $$ X = X_{\text{basis}} + \beta_C \times C $$
-    $$ Y = \beta_X \times X + \beta_{CY} \times C $$
+$$ X = X_{\text{basis}} + \beta_C \times C $$
+$$ Y = \beta_X \times X + \beta_{CY} \times C $$
 
 ```{r Data Simulation-Confounder Effect, include=T, echo=F}
 ui <- fluidPage(
@@ -233,6 +238,10 @@ server <- function(input, output) {
     set.seed(123)
     C <- rnorm(n)
     X_basis <- rnorm(n)
+    orthogonal_matrix <- far::orthonormalization(cbind(C,X_basis), basis = FALSE, norm = TRUE)
+    C <- orthogonal_matrix[,1]
+    X_basis <- orthogonal_matrix[,2]
+    
     noise = rnorm(n, sd = input$noise_level)
     
     for (i in seq_along(true_effect_C_X)) {
@@ -271,60 +280,61 @@ server <- function(input, output) {
     # Convert ggplot to plotly
     ggplotly(p)
   })
-   output$igraph_plot <- renderPlot(width = 500,height = 500,
+  output$igraph_plot <- renderPlot(width = 500,height = 500,
                                    {
-    # Create a directed graph
-    edges <- data.frame(
-      from = c("X_basis", "X", "C_basis", "C",  "C","Noise", "Noise"),
-      to =   c("X",       "Y", "C",       "X",  "Y","X",     "Y")
-    )
-    
-    # Define node attributes
-    node_attrs <- data.frame(
-      node = c("X_basis", "X", "C_basis", "C", "Noise","Y"),
-      shape = c("circle", "rectangle", "circle", "rectangle", "circle", "rectangle"),
-      label = c("S.N.D\nN(0,1)", "X", "S.N.D\nN(0,1)", "Confounder",
-                paste("Noise\nN(0,sigma)\nLevel=",input$noise_level),
-                "Y"),
-      color = c("gray", "lightblue", "gray", "lightblue", "gray", "lightblue")
-    )
-    # Manually specify the coordinates for each node
-    node_coords <- data.frame(
-      x = c(-1, -1,     0,  0,   0,   1),
-      y = c( 2,  0.5,  -3, -1.5,  -5,   0.5)
-    )
-    # Manually specify edge labels
-    edge_labels <- c(
-      "1",
-      paste("Beta_X_to_Y =", input$effect_X_Y),
-      "1",
-      "Beta_C_to_X:\nrange from -1 to 1",
-      paste("Beta_C_to_Y =", input$effect_C_Y),
-      "1",
-      "1"
-    )
-    
-    # Create the graph
-    graph <- graph_from_data_frame(edges, directed = TRUE)
-    
-    # Set node attributes
-    V(graph)$shape <- node_attrs$shape
-    V(graph)$label <- node_attrs$label
-    V(graph)$color <- node_attrs$color
-    V(graph)$size <- 50  # Adjust the node size
-    windowsFonts(HEL=windowsFont("Helvetica CE 55 Roman"),
-             RMN=windowsFont("Times New Roman"),
-             ARL=windowsFont("Arial"))
-    # Plot the graph with manually specified coordinates and updated edge labels
-    plot(graph,
-         layout = as.matrix(node_coords), 
-         vertex.label.family = "ARL",
-         vertex.size = V(graph)$size,
-         vertex.label.dist = 0,
-         edge.label = edge_labels,
-         edge.label.cex = 0.8,
-         margin = c(0,0,0,0))
-  })
+                                     # Create a directed graph
+                                     edges <- data.frame(
+                                       from = c("X_basis", "X", "C_basis", "C",  "C","Noise", "Noise","Noise"),
+                                       to =   c("X",       "Y", "C",       "X",  "Y","X",     "Y",    "C")
+                                     )
+                                     
+                                     # Define node attributes
+                                     node_attrs <- data.frame(
+                                       node = c("X_basis", "X", "C_basis", "C", "Noise","Y"),
+                                       shape = c("circle", "rectangle", "circle", "rectangle", "circle", "rectangle"),
+                                       label = c("S.N.D\nN(0,1)", "X", "S.N.D\nN(0,1)", "Confounder",
+                                                 paste("Noise\nN(0,sigma)\nLevel=",input$noise_level),
+                                                 "Y"),
+                                       color = c("gray", "lightblue", "gray", "lightblue", "gray", "lightblue")
+                                     )
+                                     # Manually specify the coordinates for each node
+                                     node_coords <- data.frame(
+                                       x = c(-1, -1,     0,  0,   0,   1),
+                                       y = c( 2,  0.5,  -3, -1.5,  -5,   0.5)
+                                     )
+                                     # Manually specify edge labels
+                                     edge_labels <- c(
+                                       "1",
+                                       paste("Beta_X_to_Y =", input$effect_X_Y),
+                                       "1",
+                                       "Beta_C_to_X:\nrange from -1 to 1",
+                                       paste("Beta_C_to_Y =", input$effect_C_Y),
+                                       "1",
+                                       "1",
+                                       "1"
+                                     )
+                                     
+                                     # Create the graph
+                                     graph <- graph_from_data_frame(edges, directed = TRUE)
+                                     
+                                     # Set node attributes
+                                     V(graph)$shape <- node_attrs$shape
+                                     V(graph)$label <- node_attrs$label
+                                     V(graph)$color <- node_attrs$color
+                                     V(graph)$size <- 50  # Adjust the node size
+                                     windowsFonts(HEL=windowsFont("Helvetica CE 55 Roman"),
+                                                  RMN=windowsFont("Times New Roman"),
+                                                  ARL=windowsFont("Arial"))
+                                     # Plot the graph with manually specified coordinates and updated edge labels
+                                     plot(graph,
+                                          layout = as.matrix(node_coords), 
+                                          vertex.label.family = "ARL",
+                                          vertex.size = V(graph)$size,
+                                          vertex.label.dist = 0,
+                                          edge.label = edge_labels,
+                                          edge.label.cex = 0.8,
+                                          margin = c(0,0,0,0))
+                                   })
 }
 shinyApp(ui = ui, server = server,options = list(height = 980))
 ```
@@ -334,25 +344,25 @@ shinyApp(ui = ui, server = server,options = list(height = 980))
 The data generation process can be described as follows:
 
 1.  Generate the baseline values of the independent variable
-    $X_{\text{basis}}$ and dependent variable $Y_{\text{basis}}$ from
-    standard normal distributions:
-    $$ X_{\text{basis}} \sim \mathcal{N}(0, 1) $$
-    $$ Y_{\text{basis}} \sim \mathcal{N}(0, 1) $$
+$X_{\text{basis}}$ and dependent variable $Y_{\text{basis}}$ from
+standard normal distributions:
+$$ X_{\text{basis}} \sim \mathcal{N}(0, 1) $$
+$$ Y_{\text{basis}} \sim \mathcal{N}(0, 1) $$
 
 2.  Generate the Gaussian noise term $\text{noise}$ from a normal
-    distribution with standard deviation $\sigma$:
-    $$ \text{noise} \sim \mathcal{N}(0, \sigma) $$
+distribution with standard deviation $\sigma$:
+$$ \text{noise} \sim \mathcal{N}(0, \sigma) $$
 
 3.  If noise is added ($\sigma > 0$):
-    $$ X = X_{\text{basis}} + \text{noise} $$
-    $$ Y = Y_{\text{basis}} + \beta_X \times X + \text{noise} $$
-    $$ C = \beta_{XC} \times X + \beta_{YC} \times Y + \text{noise} $$
+$$ X = X_{\text{basis}} + \text{noise} $$
+$$ Y = Y_{\text{basis}} + \beta_X \times X + \text{noise} $$
+$$ C = \beta_{XC} \times X + \beta_{YC} \times Y + \text{noise} $$
 
 4.  If no noise is added ($\sigma = 0$): $$ X = X_{\text{basis}} $$
-    $$ Y = Y_{\text{basis}} + \beta_X \times X $$
-    $$ C = \beta_{XC} \times X + \beta_{YC} \times Y $$
+$$ Y = Y_{\text{basis}} + \beta_X \times X $$
+$$ C = \beta_{XC} \times X + \beta_{YC} \times Y $$
 
-```{r, include=T, echo=F}
+```{r Data Simulation-Collider Effect, include=T, echo=F}
 ui <- fluidPage(
   titlePanel("Interactive Plot with Graph"),
   sidebarLayout(
@@ -383,9 +393,12 @@ server <- function(input, output) {
     est_with_C <- numeric(length(true_effect_X_C))
     est_without_C <- numeric(length(true_effect_X_C))
     set.seed(123)
-    Y_basis <- rnorm(n)
     X_basis <- rnorm(n)
+    Y_basis <- rnorm(n)
     noise <- rnorm(n, sd = input$noise_level)
+    orthogonal_matrix <- orthonormalization(cbind(X_basis,Y_basis), basis = FALSE, norm = TRUE)
+    X_basis <- orthogonal_matrix[,1]
+    Y_basis <- orthogonal_matrix[,2]
     
     for (i in seq_along(true_effect_X_C)) {
       if (input$noise_level > 0) {
@@ -429,61 +442,61 @@ server <- function(input, output) {
   
   output$igraph_plot <- renderPlot(width = 500,height = 500,
                                    {
-    # Create a directed graph
-    edges <- data.frame(
-      from = c("X_basis", "X", "Y_basis", "Y",  "Noise","X", "Noise", "Noise"),
-      to =   c("X",       "Y", "Y",       "C",  "Y",    "C", "X",     "C")
-    )
-    
-    # Define node attributes
-    node_attrs <- data.frame(
-      node = c("X_basis", "X", "Y_basis", "Y", "Noise","C"),
-      shape = c("circle", "rectangle", "circle", "rectangle", "circle", "rectangle"),
-      label = c("S.N.D\nN(0,1)", "X", "S.N.D\nN(0,1)", "Y",
-                paste("Noise\nN(0,sigma)\nLevel=",input$noise_level),
-                "Collider"),
-      color = c("gray", "lightblue", "gray", "lightblue", "gray", "lightblue")
-    )
-    # Manually specify the coordinates for each node
-    node_coords <- data.frame(
-      x = c(-1, -1,  0,  0, -0.5, -0.5),
-      y = c( 1,  0,  1,  0, 2, -1)
-    )
-    # Manually specify edge labels
-    edge_labels <- c(
-      "1",
-      paste("Beta_X_to_Y =", input$effect_X_Y),
-      "1",
-      paste("Beta_Y_to_C =", input$effect_Y_C),
-      "1",
-      "Beta_X_to_C:\nrange from -1 to 1",
-      "1",
-      "1"
-    )
-    
-    # Create the graph
-    graph <- graph_from_data_frame(edges, directed = TRUE)
-    
-    # Set node attributes
-    V(graph)$shape <- node_attrs$shape
-    V(graph)$label <- node_attrs$label
-    V(graph)$color <- node_attrs$color
-    V(graph)$size <- 50  # Adjust the node size
-    windowsFonts(HEL=windowsFont("Helvetica CE 55 Roman"),
-             RMN=windowsFont("Times New Roman"),
-             ARL=windowsFont("Arial"))
-    # Plot the graph with manually specified coordinates and updated edge labels
-    plot(graph,
-         layout = as.matrix(node_coords), 
-         vertex.label.family = "ARL",
-         vertex.size = V(graph)$size,
-         vertex.label.dist = 0,
-         edge.label = edge_labels,
-         edge.label.cex = 0.8,
-         edge.label.x = c(-1, -0.5,  NULL,  NULL, NULL, NULL),
-         edge.label.y = c(0, NULL,  NULL,  NULL, NULL, NULL),
-         margin = c(0,0,0,0))
-  })
+                                     # Create a directed graph
+                                     edges <- data.frame(
+                                       from = c("X_basis", "X", "Y_basis", "Y",  "Noise","X", "Noise", "Noise"),
+                                       to =   c("X",       "Y", "Y",       "C",  "Y",    "C", "X",     "C")
+                                     )
+                                     
+                                     # Define node attributes
+                                     node_attrs <- data.frame(
+                                       node = c("X_basis", "X", "Y_basis", "Y", "Noise","C"),
+                                       shape = c("circle", "rectangle", "circle", "rectangle", "circle", "rectangle"),
+                                       label = c("S.N.D\nN(0,1)", "X", "S.N.D\nN(0,1)", "Y",
+                                                 paste("Noise\nN(0,sigma)\nLevel=",input$noise_level),
+                                                 "Collider"),
+                                       color = c("gray", "lightblue", "gray", "lightblue", "gray", "lightblue")
+                                     )
+                                     # Manually specify the coordinates for each node
+                                     node_coords <- data.frame(
+                                       x = c(-1, -1,  0,  0, -0.5, -0.5),
+                                       y = c( 1,  0,  1,  0, 2, -1)
+                                     )
+                                     # Manually specify edge labels
+                                     edge_labels <- c(
+                                       "1",
+                                       paste("Beta_X_to_Y =", input$effect_X_Y),
+                                       "1",
+                                       paste("Beta_Y_to_C =", input$effect_Y_C),
+                                       "1",
+                                       "Beta_X_to_C:\nrange from -1 to 1",
+                                       "1",
+                                       "1"
+                                     )
+                                     
+                                     # Create the graph
+                                     graph <- graph_from_data_frame(edges, directed = TRUE)
+                                     
+                                     # Set node attributes
+                                     V(graph)$shape <- node_attrs$shape
+                                     V(graph)$label <- node_attrs$label
+                                     V(graph)$color <- node_attrs$color
+                                     V(graph)$size <- 50  # Adjust the node size
+                                     windowsFonts(HEL=windowsFont("Helvetica CE 55 Roman"),
+                                                  RMN=windowsFont("Times New Roman"),
+                                                  ARL=windowsFont("Arial"))
+                                     # Plot the graph with manually specified coordinates and updated edge labels
+                                     plot(graph,
+                                          layout = as.matrix(node_coords), 
+                                          vertex.label.family = "ARL",
+                                          vertex.size = V(graph)$size,
+                                          vertex.label.dist = 0,
+                                          edge.label = edge_labels,
+                                          edge.label.cex = 0.8,
+                                          edge.label.x = c(-1, -0.5,  NULL,  NULL, NULL, NULL),
+                                          edge.label.y = c(0, NULL,  NULL,  NULL, NULL, NULL),
+                                          margin = c(0,0,0,0))
+                                   })
 }
 
 shinyApp(ui = ui, server = server, options = list(height = 980))
@@ -491,16 +504,912 @@ shinyApp(ui = ui, server = server, options = list(height = 980))
 
 ## Mediator
 
-----
+Let's define the following variables: - $X_{\text{basis}}$: The baseline
+value of the independent variable $X$ - $C_{\text{basis}}$: The baseline
+value of the mediator variable $C$ - $n$: The number of observations in
+the dataset - $\sigma$: The standard deviation of the Gaussian noise
+term
+
+The data generation process can be described as follows:
+
+1.  Generate the baseline values of the independent variable
+$X_{\text{basis}}$ and mediator variable $C_{\text{basis}}$ from
+standard normal distributions:
+$$ X_{\text{basis}} \sim \mathcal{N}(0, 1) $$
+$$ C_{\text{basis}} \sim \mathcal{N}(0, 1) $$
+
+2.  Generate the Gaussian noise term $\text{noise}$ from a normal
+distribution with standard deviation $\sigma$:
+$$ \text{noise} \sim \mathcal{N}(0, \sigma) $$
+
+3.  If noise is added ($\sigma > 0$):
+$$ X = X_{\text{basis}} + \text{noise} $$
+$$ C = C_{\text{basis}} + \beta_{XC} \times X + \text{noise} $$
+$$ Y = \beta_{YC} \times C + \beta_{XY} \times X + \text{noise} $$
+
+4.  If no noise is added ($\sigma = 0$): $$ X = X_{\text{basis}} $$
+$$ C = C_{\text{basis}} + \beta_{XC} \times X $$
+$$ Y = \beta_{YC} \times C + \beta_{XY} \times X $$
+
+This process simulates the mediation effect, allowing us to investigate
+how the mediator variable $C$ influences the relationship between $X$
+and $Y$ with or without the presence of noise.
+
+```{r, Data Simulation-Mediator Effect, include=T, echo=F}
+ui <- fluidPage(
+  titlePanel("Interactive Plot with Graph"),
+  sidebarLayout(
+    sidebarPanel(
+      sliderInput("effect_X_Y", "True Effect X to Y:",
+                  min = 0, max = 1, value = 0.15, step = 0.01),
+      sliderInput("effect_C_Y", "True Effect Y to C:",
+                  min = -1, max = 1, value = 0.5, step = 0.01),
+      sliderInput("noise_level", "Noise Level:",
+                  min = 0, max = 1, value = 0, step = 0.01),
+      sliderInput("sample_size", "Sample Size:",
+                  min = 100, max = 5000, value = 500, step = 100)
+    ),
+    mainPanel(
+      plotlyOutput("mediator_plot"),  # Adjust the height and width here
+      plotOutput("igraph_plot")
+    )
+  )
+)
+
+server <- function(input, output) {
+  
+  # Define mediator effect plot
+  output$mediator_plot <- renderPlotly({
+    n <- input$sample_size
+    
+    true_effect_X_C <- seq(-1, 1, by = 0.01)
+    est_with_C <- numeric(length(true_effect_X_C))
+    est_without_C <- numeric(length(true_effect_X_C))
+    set.seed(123)
+    noise <- rnorm(n, sd = input$noise_level)
+    X_basis <- rnorm(n)
+    C_basis <- rnorm(n)
+    orthogonal_matrix <- far::orthonormalization(cbind(X_basis,C_basis), basis = FALSE, norm = TRUE)
+    X_basis <- orthogonal_matrix[,1]
+    C_basis <- orthogonal_matrix[,2]
+    
+    for (i in seq_along(true_effect_X_C)) {
+      if (input$noise_level > 0) {
+        X <- X_basis + noise
+        C <- C_basis + true_effect_X_C[i] * X + noise
+        Y <- input$effect_C_Y * C + input$effect_X_Y * X +  noise
+      } else {
+        X <- X_basis
+        C <- C_basis + true_effect_X_C[i] * X
+        Y <- input$effect_C_Y * C + input$effect_X_Y * X
+      }
+      data <- data.frame(X, C, Y)
+      
+      model_with_C <- lm(Y ~ X + C, data = data)
+      model_without_C <- lm(Y ~ X, data = data)
+      
+      est_with_C[i] <- coef(model_with_C)["X"]
+      est_without_C[i] <- coef(model_without_C)["X"]
+    }
+    
+    plot_data <- data.frame(
+      True_effect_X_C = true_effect_X_C,
+      Estimated_Effect_With_C = est_with_C,
+      Estimated_Effect_Without_C = est_without_C,
+      True_effect_X_Y = true_effect_X_C * input$effect_C_Y + input$effect_X_Y
+    )
+    
+    p <- ggplot(plot_data, aes(x = True_effect_X_C)) +
+      geom_line(aes(y = Estimated_Effect_With_C, color = "With C"), linewidth = 1) +
+      geom_line(aes(y = Estimated_Effect_Without_C, color = "Without C"), linewidth = 1) +
+      geom_line(aes(y = True_effect_X_Y, color = "Ground Truth"), linetype = "dashed", linewidth = 1) +
+      labs(title = "Effect of Controlling Mediator in Regression Model",
+           x = "True Effect of C to X",
+           y = "Estimated Effect of X to Y") +
+      scale_color_manual(values = c("With C" = "blue", "Without C" = "red", "Ground Truth" = "black"),
+                         guide = guide_legend(override.aes = list(linetype = c("dashed", "solid", "solid")))) +
+      theme_minimal()
+    
+    # Convert ggplot to plotly
+    ggplotly(p)
+  })
+  
+  output$igraph_plot <- renderPlot(width = 500,height = 500,
+                                   {
+                                     # Create a directed graph
+                                     edges <- data.frame(
+                                       from = c("X_basis", "X", "C_basis", "X",  "C","Noise", "Noise", "Noise"),
+                                       to =   c("X",       "Y", "C",       "C",  "Y",    "X",     "C",     "Y")
+                                     )
+                                     
+                                     # Define node attributes
+                                     node_attrs <- data.frame(
+                                       node = c("X_basis", "X", "C_basis", "C", "Noise","Y"),
+                                       shape = c("circle", "rectangle", "circle", "rectangle", "circle", "rectangle"),
+                                       label = c("S.N.D\nN(0,1)", "X", "S.N.D\nN(0,1)", "Mediator",
+                                                 paste("Noise\nN(0,sigma)\nLevel=",input$noise_level),
+                                                 "Y"),
+                                       color = c("gray", "lightblue", "gray", "lightblue", "gray", "lightblue")
+                                     )
+                                     # Manually specify the coordinates for each node
+                                     node_coords <- data.frame(
+                                       x = c(-1, -1,  -0.5,  -0.5, -0.5, 0),
+                                       y = c( 1,  0,  -2.5,  -1, 2, 0)
+                                     )
+                                     # Manually specify edge labels
+                                     edge_labels <- c(
+                                       "1",
+                                       paste("Beta_X_to_Y =", input$effect_X_Y),
+                                       "1",
+                                       "-1 to 1",
+                                       paste("Beta_C_to_Y =", input$effect_C_Y),
+                                       "1",
+                                       "1",
+                                       "1"
+                                     )
+                                     
+                                     # Create the graph
+                                     graph <- graph_from_data_frame(edges, directed = TRUE)
+                                     
+                                     # Set node attributes
+                                     V(graph)$shape <- node_attrs$shape
+                                     V(graph)$label <- node_attrs$label
+                                     V(graph)$color <- node_attrs$color
+                                     V(graph)$size <- 50  # Adjust the node size
+                                     windowsFonts(HEL=windowsFont("Helvetica CE 55 Roman"),
+                                                  RMN=windowsFont("Times New Roman"),
+                                                  ARL=windowsFont("Arial"))
+                                     # Plot the graph with manually specified coordinates and updated edge labels
+                                     plot(graph,
+                                          layout = as.matrix(node_coords), 
+                                          vertex.label.family = "ARL",
+                                          vertex.size = V(graph)$size,
+                                          vertex.label.dist = 0,
+                                          edge.label = edge_labels,
+                                          edge.label.cex = 0.8,
+                                          margin = c(0,0,0,0))
+                                   })
+}
+
+shinyApp(ui = ui, server = server, options = list(height = 980))
+```
+
+------------------------------------------------------------------------
 
 # Statistical Controlling of Covariates
 
-In regression analysis, controlling for covariates means that you include them in the model as independent variables. The purpose of controlling for covariates is to remove the effect of the covariate on the dependent variable so that you can more accurately estimate the effect of the independent variable on the dependent variable. This is done by adding the covariate to the regression model as an independent variable. When you control for a covariate in a regression model, you are essentially holding it constant while examining the relationship between the independent variable and the dependent variable¹.
+In regression analysis, controlling for covariates means that you
+include them in the model as independent variables. The purpose of
+controlling for covariates is to remove the effect of the covariate on
+the dependent variable so that you can more accurately estimate the
+effect of the independent variable on the dependent variable. This is
+done by adding the covariate to the regression model as an independent
+variable. When you control for a covariate in a regression model, you
+are essentially holding it constant while examining the relationship
+between the independent variable and the dependent variable¹.
 
-Directly controlling for a covariate in a regression model is different from regressing the independent variable on the covariate and then using the residuals as a new independent variable in the regression model. This method is called residualization or residual-based control. Residualization is used when you want to examine the relationship between two variables while controlling for a third variable. The difference between residualization and direct control is that residualization removes only the linear relationship between the independent variable and the covariate, whereas direct control removes all of the effects of the covariate on the dependent variable².
+Directly controlling for a covariate in a regression model is different
+from regressing the independent variable on the covariate and then using
+the residuals as a new independent variable in the regression model.
+This method is called residualization or residual-based control.
+Residualization is used when you want to examine the relationship
+between two variables while controlling for a third variable. The
+difference between residualization and direct control is that
+residualization removes only the linear relationship between the
+independent variable and the covariate, whereas direct control removes
+all of the effects of the covariate on the dependent variable².
 
-(1) [2112.00672] Controlling for multiple covariates - arXiv.org. https://arxiv.org/abs/2112.00672.
-(2) Controlling covariates in linear regression in R - Cross Validated. https://stats.stackexchange.com/questions/89032/controlling-covariates-in-linear-regression-in-r.
-(3) ANCOVA: Uses, Assumptions & Example - Statistics By Jim. https://statisticsbyjim.com/anova/ancova/.
+(1) [2112.00672] Controlling for multiple covariates - arXiv.org.
+<https://arxiv.org/abs/2112.00672>.
+(2) Controlling covariates in linear regression in R - Cross Validated.
+<https://stats.stackexchange.com/questions/89032/controlling-covariates-in-linear-regression-in-r>.
+(3) ANCOVA: Uses, Assumptions & Example - Statistics By Jim.
+<https://statisticsbyjim.com/anova/ancova/>.
 
 ## Direct Controlling & Residualization
+
+**Getting Started**
+
+1. **Covariance Adjustment**: On the left side of the application, you'll find a covariance adjustment panel. Here, you can adjust the covariance between the independent variable \(X\), the mediator or covariate \(C\), and the dependent variable \(Y\). Move the sliders to change the covariance values.
+
+2. **Noise Level**: You can also adjust the noise level using the "Noise Level" slider. This represents the amount of random variation in the data.
+
+3. **Sample Size**: Control the size of your dataset by adjusting the "Sample Size" slider. This determines the number of data points in your simulated dataset.
+
+4. **Pairs Plot**: The top-left plot is a "Pairs Plot" that shows the relationships between \(X\), \(C\), and \(Y\). It provides an overview of how the variables are correlated.
+
+**Direct Control**
+
+1. The top-right scatter plot labeled "Direct Control" shows the relationship between \(X\) and \(Y\) when directly controlling for \(C\). Points are color-coded by the value of \(C\), with transparency indicating the magnitude of \(C\).
+
+2. You'll see a blue line that represents the fitted regression line when controlling for \(C\). The label below the plot displays the estimated coefficient \(\beta_{X.C}\).
+
+3. Below the plot, you'll find text annotations with the standard error (SE), 95% confidence interval (CI), and p-value for the coefficient.
+
+**Residualization Control**
+
+1. The bottom-left scatter plot labeled "Residualization Control" shows the relationship between the residualized \(X\) (after controlling for \(C\)) and \(Y\). Like before, points are color-coded by the value of \(C\), with transparency indicating the magnitude of \(C\).
+
+2. A blue line represents the fitted regression line. The label below the plot displays the estimated coefficient \(\beta_{X}\).
+
+3. Text annotations below the plot provide SE, CI, and p-value for the coefficient.
+
+**Variance Explained**
+
+1. The bottom-right plot labeled "Variance Explained by Regression Models" shows the adjusted R-squared values for the three models: \(Y \sim X\), \(Y \sim X + C\), and \(Y \sim \text{Residualized } X\).
+
+2. Hover over each bar to see the specific adjusted R-squared value for that model.
+
+```{r,Residualization,include=T,echo=F,message=F,warning=F}
+# Define the UI for the Shiny app
+ui <- fluidPage(
+  titlePanel("Covariance Exploration"),
+  sidebarLayout(
+    sidebarPanel(
+      numericInput("cov_X_C", "Cov(X, C):", 0.4, min = -1, max = 1, step = 0.01),
+      numericInput("cov_X_Y", "Cov(X, Y):", 0.6, min = -1, max = 1, step = 0.01),
+      numericInput("cov_C_Y", "Cov(C, Y):", 0.4, min = -1, max = 1, step = 0.01),
+      numericInput("sample_size", "Sample Size", 500, min = 100, max = 2000, step = 10),
+      actionButton("update", "Update Data")
+    ),
+    mainPanel(
+      tabsetPanel(
+        tabPanel("Pairs Plot", plotlyOutput("pairs_plot")),
+        tabPanel("Direct Control Scatter Plot", plotlyOutput("scatter_direct")),
+        tabPanel("Residualization Scatter Plot", plotlyOutput("scatter_residual")),
+        tabPanel("Variance Explained Plot", plotlyOutput("variance_explained_plot"))
+      )
+    )
+  )
+)
+
+# Define the server logic for the Shiny app
+server <- function(input, output) {
+  data <- reactive({
+    mu <- c(0, 0, 0)
+    sigma <- matrix(c(1, input$cov_X_C, input$cov_X_Y,
+                      input$cov_X_C, 1, input$cov_C_Y,
+                      input$cov_X_Y, input$cov_C_Y, 1), nrow = 3)
+    data <- MASS::mvrnorm(n = input$sample_size, mu, sigma)
+    data_df <- as.data.frame(data)
+    colnames(data_df) <- c("X", "C", "Y")
+    remove_mdl <- lm(X~C,data_df)
+    data_df$residualized_X = residuals(remove_mdl) + remove_mdl$coefficients['(Intercept)']
+    return(data_df)
+  })
+  
+  output$pairs_plot <- renderPlotly({
+    data_df <- data()
+    pairs_plot <- ggpairs(data_df, columns = 1:ncol(data_df), diag = list(continuous = "barDiag"))
+    pairs_plot <- pairs_plot + theme_bw() +
+      theme(axis.text.x = element_blank(), axis.text.y = element_blank())
+    ggplotly(pairs_plot)
+  })
+  
+  output$scatter_direct <- renderPlotly({
+    data_df <- data()
+    scatter_direct <- ggplot(data_df, aes(x = X, y = Y, alpha = C)) +
+      geom_point() +
+      geom_smooth(method = "lm", formula = y ~ x, se = TRUE, color = "lightblue") +
+      labs(title = "Directly Controlling",
+           x = "X", y = "Y") +
+      scale_alpha_continuous(range = c(0.1, 1)) +
+      theme(legend.position = "none")+
+      coord_cartesian(xlim = c(-3, 3), ylim = c(-5, 5))
+    coeff_direct <- coef(lm(Y ~ X + C, data = data_df))["X"]
+    annotation_text_direct <- sprintf(
+      "Beta: %.3f\nSE: %.3f\n95%% CI: (%.3f, %.3f)\np-value: %.2e", 
+      coeff_direct,
+      summary(lm(Y ~ X + C, data = data_df))$coefficients["X", "Std. Error"],
+      confint(lm(Y ~ X + C, data = data_df))["X", "2.5 %"],
+      confint(lm(Y ~ X + C, data = data_df))["X", "97.5 %"],
+      summary(lm(Y ~ X + C, data = data_df))$coefficients["X", "Pr(>|t|)"]
+    )
+    scatter_direct <- scatter_direct +
+      annotate("text", x = 0, y = -4,
+               label = annotation_text_direct,
+               hjust = 0, vjust = 0) +
+      theme_bw()
+    ggplotly(scatter_direct)
+  })
+  
+  output$scatter_residual <- renderPlotly({
+    data_df <- data()
+    scatter_residual <- ggplot(data_df, aes(x = residualized_X, y = Y, alpha = C)) +
+      geom_point() +
+      geom_smooth(method = "lm", formula = y ~ x, se = TRUE, color = "lightblue") +
+      labs(title = "Covariates Residualization",
+           x = "Residualized X", y = "Y") +
+      scale_alpha_continuous(range = c(0.1, 1)) +
+      theme(legend.position = "none") +
+      coord_cartesian(xlim = c(-3, 3), ylim = c(-5, 5))
+    coeff_residual <- coef(lm(Y ~ residualized_X, data = data_df))["residualized_X"]
+    annotation_text_residual <- sprintf(
+      "Beta: %.3f\nSE: %.3f\n95%% CI: (%.3f, %.3f)\np-value: %.2e", 
+      coeff_residual,
+      summary(lm(Y ~ residualized_X, data = data_df))$coefficients["residualized_X", "Std. Error"],
+      confint(lm(Y ~ residualized_X, data = data_df))["residualized_X", "2.5 %"],
+      confint(lm(Y ~ residualized_X, data = data_df))["residualized_X", "97.5 %"],
+      summary(lm(Y ~ residualized_X, data = data_df))$coefficients["residualized_X", "Pr(>|t|)"]
+    )
+    scatter_residual <- scatter_residual +
+      annotate("text", x = 0, y = -4,
+               label = annotation_text_residual,
+               hjust = 0, vjust = 0) +
+      theme_bw()
+    ggplotly(scatter_residual)
+  })
+  
+  output$variance_explained_plot <- renderPlotly({
+    data_df <- data()
+    model_names <- c("Y ~ X", "Y ~ X + C", "Y ~ Residualized X")
+    adj_r_squared_values <- c(
+      summary(lm(Y ~ X, data = data_df))$adj.r.squared,
+      summary(lm(Y ~ X + C, data = data_df))$adj.r.squared,
+      summary(lm(Y ~ residualized_X, data = data_df))$adj.r.squared
+    )
+    data <- data.frame(Model = model_names, Adjusted_R_Squared = adj_r_squared_values)
+    variance_explained_plot <- ggplot(data, aes(x = Model, y = Adjusted_R_Squared)) +
+      geom_bar(stat = "identity", fill = "lightblue") +
+      labs(title = "Variance Explained by Regression Models",
+           x = "Model",
+           y = "Adjusted R-Squared") +
+      theme_bw()+
+      geom_text(aes(label = round(Adjusted_R_Squared, 3)), vjust = -0.3, size = 4)  # Add annotations
+    ggplotly(variance_explained_plot)
+  })
+  
+  observeEvent(input$update, {
+    data_df <- data()
+    plotlyProxy("pairs_plot", session) %>%
+      plotly::plotlyUpdate(data = list(z = cor(data_df), type = "heatmap"))
+  })
+}
+
+# Run the Shiny app
+shinyApp(ui = ui, server = server,options = list(height = 650))
+```
+## Using Directed Acyclic Graph to Justify Covariates
+
+Let's dive deeper into the complex relationships among the variables (X, Y, and covariates) and provide more detailed justifications. Afterward, we will create an updated DAG to visualize these relationships.
+Reference: Song et al., 2023, JAACAP.
+
+**Step 1: Identify Variables**
+1. Independent Variable (X): Youth's screen time (SMA).
+2. Dependent Variable (Y): Youth's neurocognitive performance, trait-like measures, and behavioral problems.
+
+**Step 2: Identify Covariates**
+We have several covariates, including:
+1. Youth's age (Age)
+2. Youth's gender (Gender)
+3. Youth's race (Race)
+4. Youth's ethnicity (Ethnicity)
+5. Parents' marital status (Marital)
+6. Parents' highest education level (Education)
+7. Family income (Income)
+8. Household size (Size)
+9. Household structure (Structure)
+
+**Step 3: Define Complex Relationships**
+
+Now, let's delve into the complex relationships among these variables:
+
+- **Youth's Age (Age):**
+  - Age may directly impact youth's neurocognitive performance, trait-like measures, and behavioral problems (Y) as cognitive development and behavior can change with age.
+  
+- **Youth's Gender (Gender):**
+  - Gender may influence screen time (SMA) as studies have shown gender-based differences in media usage.
+  - Gender can also directly affect youth's neurocognitive performance, trait-like measures, and behavioral problems (Y) due to potential gender-related behavioral and cognitive differences.
+
+- **Youth's Race (Race) and Ethnicity (Ethnicity):**
+  - Race and ethnicity may affect screen time (SMA) as cultural and social factors can impact media consumption patterns.
+  - Additionally, race and ethnicity can directly influence youth's neurocognitive performance, trait-like measures, and behavioral problems (Y) due to differences in cultural experiences and societal factors.
+
+- **Parents' Marital Status (Marital) and Parents' Highest Education Level (Education):**
+  - Marital status and education level can jointly affect family income (Income). For example, single-parent households might have different income levels.
+  - Family income (Income) can influence screen time (SMA) since it can determine access to media devices and content.
+  
+- **Family Income (Income), Household Size (Size), and Household Structure (Structure):**
+  - These factors together can represent the socioeconomic status (SES) of the family, affecting screen time (SMA).
+  - SES can also have a direct impact on youth's neurocognitive performance, trait-like measures, and behavioral problems (Y) because it can influence access to educational resources, healthcare, and neighborhood environments.
+
+**Step 4: Create the Updated DAG**
+
+Let's create an updated DAG to visualize these complex relationships using the R package igraph. This DAG will include the relationships described above:
+
+``` {r, DAG justification for JAACAP paper}
+# Load the igraph library
+library(igraph)
+
+# Define nodes (variables)
+nodes <- c("SMA", "Developmental\nMeasures", "Age", "Gender", "Race", "Ethnicity", "Marital", "Education", "Income", "Size", "Structure")
+
+# Create an empty graph
+graph <- make_empty_graph(n = length(nodes), directed = TRUE)
+
+# Add nodes to the graph
+V(graph)$label <- nodes
+
+# Define edges (relationships)
+edges <- c(1,2,
+           3,1,
+           3,2,
+           4,1,
+           4,2,
+           5,1,
+           5,2,
+           6,1,
+           6,2,
+           7,9,
+           8,9,
+           9,1,
+           9,2,
+           10,1,
+           10,2,
+           11,1,
+           11,2)
+
+# Add edges to the graph
+graph <- add_edges(graph, edges)
+
+# Fruchterman-Reingold 
+# Generate node positions using the layout algorithm
+node_positions <- layout_with_kk(graph,
+                                 maxiter = 50000,
+                                 epsilon = 1e-6,
+                                 kkconst = 25)
+
+# Plot the DAG with improved layout and visible edges
+plot(graph, layout = node_positions, edge.arrow.size = 0.5,
+     vertex.color = "lightblue", vertex.size = 40)
+
+```
+
+This  DAG visualizes the complex relationships among the variables and covariates, including our hypothesis about how they influence each other. It's important to note that this DAG still simplifies the real-world relationships, and the actual relationships can be even more intricate.
+
+## Assisting Covariates Identification by R package 'chest'
+
+```{r, include=T,echo=F}
+# Set the seed for reproducibility
+set.seed(123)
+
+# Number of observations
+n <- 1000
+
+# Define means for each variable
+means <- rep(0, 11)
+
+# Create a covariance matrix with different covariances
+cov_matrix <- matrix(0, nrow = 11, ncol = 11)
+
+# Set diagonal elements to 1
+diag(cov_matrix) <- 1
+
+# Specify desired covariances (adjust as needed)
+cov_matrix[1, 2] <- 0.6  # Covariance between SMA and Developmental_Measures
+cov_matrix[1, 3] <- 0.3  # Covariance between SMA and Age
+cov_matrix[1, 4] <- 0.2  # Covariance between SMA and Gender
+cov_matrix[1, 6] <- 0.3  # Covariance between SMA and Ethnicity
+cov_matrix[1, 7] <- 0.1  # Covariance between SMA and Marital
+cov_matrix[1, 8] <- 0.2  # Covariance between SMA and Education
+cov_matrix[1, 9] <- 0.5  # Covariance between SMA and Income
+cov_matrix[1, 11] <- 0.3  # Covariance between SMA and Structure
+
+# Add more covariances as needed
+# Make the matrix symmetric
+cov_matrix <- cov_matrix + t(cov_matrix) - diag(diag(cov_matrix))
+
+# Generate correlated data
+data <- MASS::mvrnorm(n = n, mu = means, Sigma = cov_matrix)
+
+# Create a data frame with appropriate variable names
+colnames(data) <- c("SMA", "Developmental_Measures", "Age", "Gender", "Race", "Ethnicity", "Marital", "Education", "Income", "Size", "Structure")
+df <- as.data.frame(data)
+
+library(chest)
+# Specify your outcome variable (Y) and predictor variables (covariates)
+outcome_variable <- "Developmental_Measures"
+predictor_variables <- c("Age", "Gender", "Race", "Ethnicity", "Marital", "Education", "Income", "Size", "Structure")
+
+# Perform LASSO regression for covariate selection
+results <- chest_lm(crude = "Developmental_Measures ~ SMA",
+                        xlist = predictor_variables,
+                        data = df)
+chest_plot(results)
+```
+
+```{r, include=T,echo=F,warning=FALSE,message=FALSE}
+library(shiny)
+library(MASS)
+library(chest)
+library(shinyMatrix)
+library(Matrix)
+
+# Define UI
+ui <- fluidPage(
+  titlePanel("Covariate Selection with LASSO"),
+  sidebarLayout(
+    sidebarPanel(
+      sliderInput("sample_size", "Sample Size", min = 100, max = 2000, value = 1000),
+      textOutput("matrix_prompt"),
+      uiOutput("cov_matrix"),
+      actionButton("update_data", "Update Data")
+    ),
+    mainPanel(
+      plotlyOutput("chest_plot")
+    )
+  )
+)
+
+# Define server
+server <- function(input, output, session) {
+  
+  # Create a matrix for covariance input
+  matrix_prompt <- renderText("Enter covariance values:")
+  num_elements <- 11
+  cov_matrix <- matrix(0, nrow = num_elements, ncol = num_elements)
+  diag(cov_matrix) <- 1
+  output$cov_matrix <- renderUI({
+    matrixInput(
+      inputId = "cov_matrix_input",
+      value = cov_matrix,
+      rows = list(names = c("SMA", "Developmental_Measures", "Age", "Gender", "Race", "Ethnicity", "Marital", "Education", "Income", "Size", "Structure")),
+      cols = list(names = c("SMA", "Developmental_Measures", "Age", "Gender", "Race", "Ethnicity", "Marital", "Education", "Income", "Size", "Structure")),
+      class = "numeric")
+  })
+  
+  # Function to generate a covariance matrix
+  generateCovMatrix <- function() {
+    if (is.null(input$cov_matrix_input)){
+      cov_matrix <- matrix(0, nrow = 11, ncol = 11)
+      # Set diagonal elements to 1
+      diag(cov_matrix) <- 1
+      # Specify desired covariances (adjust as needed)
+      cov_matrix[1, 2] <- 0.6  # Covariance between SMA and Developmental_Measures
+      cov_matrix[1, 3] <- 0.3  # Covariance between SMA and Age
+      cov_matrix[1, 4] <- 0.2  # Covariance between SMA and Gender
+      cov_matrix[1, 6] <- 0.3  # Covariance between SMA and Ethnicity
+      cov_matrix[1, 7] <- 0.1  # Covariance between SMA and Marital
+      cov_matrix[1, 8] <- 0.2  # Covariance between SMA and Education
+      cov_matrix[1, 9] <- 0.5  # Covariance between SMA and Income
+      cov_matrix[1, 11] <- 0.3  # Covariance between SMA and Structure
+
+    }else{
+      cov_matrix_input <- as.matrix(input$cov_matrix_input)
+      diag(cov_matrix_input) <- 1
+      cov_matrix <- cov_matrix_input + t(cov_matrix_input) - diag(diag(cov_matrix_input))
+    }
+    cov_matrix <- nearPD(cov_matrix)$mat
+    return(cov_matrix)
+  }
+  
+  data <- reactive({
+    set.seed(123)
+    n <- input$sample_size
+    means <- rep(0, 11)
+    cov_matrix <- generateCovMatrix()
+    data <- MASS::mvrnorm(n = n, mu = means, Sigma = cov_matrix)
+    colnames(data) <- c("SMA", "Developmental_Measures", "Age", "Gender", "Race", "Ethnicity", "Marital", "Education", "Income", "Size", "Structure")
+    as.data.frame(data)
+  }) 
+  
+  output$chest_plot <- renderPlotly({
+    predictor_variables <- c("Age", "Gender", "Race",
+                             "Ethnicity", "Marital", "Education",
+                             "Income", "Size", "Structure")
+    results <- chest_lm(crude = "Developmental_Measures ~ SMA",
+                        xlist = predictor_variables,
+                        data = data())
+    ggplotly(chest_plot(results))
+  })
+  
+}
+
+shinyApp(ui, server,options = list(height = 550))
+
+```
+
+
+
+------------------------------------------------------------------------
+
+# Potential Bias in Estimating Causality
+
+## Omitted Variable Bias:
+
+Omitted variable bias occurs when a relevant variable (Z) is not
+included in the model. This bias can affect the estimation of the causal
+relationship between X and Y. The true causal model might be:
+
+$$ Y = \beta_0 + \beta_1 X + \beta_2 Z + \epsilon $$
+
+However, if Z is omitted from the model, we may estimate the following
+model:
+
+$$ Y = \alpha_0 + \alpha_1 X + \epsilon $$
+
+The bias ($\Delta$) in estimating the causal effect of X on Y due to
+omitting Z is given by:
+
+$$ \Delta = \beta_1 - \alpha_1 $$
+
+## Selection Bias:
+
+Selection bias arises when certain individuals or observations are
+systematically included or excluded from the analysis. It can affect
+both correlation and causality estimates. Suppose we have two groups, A
+and B, and the true causal relationship is:
+
+$$ Y = \beta_0 + \beta_1 X + \epsilon $$
+
+However, if individuals with certain characteristics (e.g., high income)
+are more likely to be in group A, the estimated relationship in group A
+($\alpha_1$) may not represent the true causal effect ($\beta_1$).
+
+## Measurement Bias:
+
+Measurement bias occurs when measurement errors affect the accuracy of
+observed values for X or Y. For instance, if there is measurement error
+in Y, we may represent it as:
+
+$$ Y_{\text{observed}} = Y_{\text{true}} + \eta $$
+
+Where $\eta$ represents measurement error. Measurement bias can
+introduce noise into the causal model.
+
+## Reverse Causation:
+
+Reverse causation happens when the presumed independent variable (X) is
+actually influenced by the dependent variable (Y). It can lead to an
+incorrect specification of the causal model. For example:
+
+$$ Y = \beta_0 + \beta_1 X + \epsilon $$
+
+But if Y causes changes in X, we have:
+
+$$ X = \alpha_0 + \alpha_1 Y + \epsilon $$
+
+In this case, estimating the causal effect of X on Y ($\beta_1$) would
+be problematic because Y is also influencing X.
+
+Please note that these are simplified mathematical representations to
+illustrate the concepts of bias and potential pitfalls. In practice,
+addressing these biases often requires advanced statistical techniques
+and careful study design.
+
+------------------------------------------------------------------------
+
+# Appendix A. Gram-Schmidt Orthogonalization
+
+The Gram-Schmidt orthogonalization process is a method used to transform
+a set of linearly dependent vectors into a set of orthogonal (and
+optionally orthonormal) vectors. It's often used in linear algebra and
+is a key component in many numerical algorithms. Here's the rationale
+behind Gram-Schmidt orthogonalization along with mathematical formulas
+and text descriptions.
+
+Certainly, let's re-check the mathematical illustration of the
+Gram-Schmidt orthogonalization process based on the source code of the
+`orthonormalization` function and ensure that everything aligns
+correctly:
+
+**Problem Statement**
+
+Suppose you have a set of vectors {v₁, v₂, ..., vₙ} that are not
+necessarily orthogonal (they may be linearly dependent or correlated).
+The goal is to find a set of orthogonal vectors {u₁, u₂, ..., uₙ} that
+span the same subspace.
+
+**Gram-Schmidt Orthogonalization Process**
+
+1.  **Initialization**:
+
+-   Start with the first vector, v₁. Set u₁ equal to v₁.
+
+2.  **Orthogonalization**:
+
+-   For each subsequent vector, vᵢ, where i \> 1:
+-   Compute a new vector, uᵢ, by subtracting the projection of
+vᵢ onto the previously computed orthogonal vectors u₁, u₂,..., uᵢ₋₁ from vᵢ.
+-   This step ensures that uᵢ is orthogonal to all previously
+computed vectors.
+
+3.  **Normalization (Optional)**:
+
+-   If desired, you can normalize the orthogonal vectors to make
+them orthonormal. To do this, divide each uᵢ by its magnitude
+(norm).
+
+Mathematically, the Gram-Schmidt process can be expressed as follows:
+
+1.  **Initialization**:
+-   $u_1 = v_1$
+2.  **Orthogonalization**:
+-   For i = 2 to n:
+-   Compute the projection of $v_i$ onto
+$u_1, u_2, ..., u_{i-1}$:
+$$ \text{proj}_{u_i}(v_i) = \frac{{v_i \cdot u_1}}{{u_1 \cdot u_1}} u_1 + \frac{{v_i \cdot u_2}}{{u_2 \cdot u_2}} u_2 + \ldots + \frac{{v_i \cdot u_{i-1}}}{{u_{i-1} \cdot u_{i-1}}} u_{i-1} $$
+-   Compute the new orthogonal vector $u_i$:
+$$ u_i = v_i - \text{proj}_{u_i}(v_i) $$
+3.  **Normalization (Optional)**:
+-   If you want orthonormal vectors, normalize each $u_i$ by
+dividing by its magnitude: $$ u_i = \frac{{u_i}}{{\|u_i\|}} $$
+
+**Rationale**
+
+The Gram-Schmidt process works by iteratively removing the components of
+each vector that lie in the direction of previously computed vectors,
+thus ensuring orthogonality. By the end of the process, you have a set
+of orthogonal vectors that span the same subspace as the original
+vectors.
+
+This orthogonalization process is important in various applications,
+including linear regression (to deal with multicollinearity), signal
+processing (to extract uncorrelated components), and numerical methods
+(for solving linear systems and eigenvalue problems).
+
+The explanation aligns with the logic and steps of the
+`orthonormalization` function, ensuring that it accurately represents
+the Gram-Schmidt orthogonalization process.
+
+**Implementation**
+
+We can generate two Gaussian variables with some covariance among them.
+And then, performing the Gram-Schmidt orthogonalization process. Here's
+how you can do it in R:
+
+```{r, Gram-Schmidt Orthogonalization,message=F,warning=F}
+library(far)
+# Generate two correlated Gaussian variables
+set.seed(123)
+mu <- c(0, 0)  # Mean vector
+sigma <- matrix(c(1, 0.6, 0.6, 1), nrow = 2)  # Covariance matrix
+data <- MASS::mvrnorm(n = 100, mu, sigma)  # Generate correlated data
+orthogonal_matrix <- orthonormalization(data, basis = FALSE, norm = TRUE)
+# The first two elements of orthogonal_vars are your orthogonal variables
+orthogonal_var1 <- orthogonal_matrix[, 1]
+orthogonal_var2 <- orthogonal_matrix[, 2]
+```
+
+Let us see what happened after Gram-Schmidt orthogonalization by
+comparing the perason's correlation coefficient.
+
+```{r, visualizing orthogonalization effects,echo = F, warning=F,message=F}
+# Load the necessary library for pairs plot
+library(GGally)
+# Create a data frame with raw and orthogonalized data
+data_df <- data.frame(
+  X = data[, 1],
+  Y = data[, 2],
+  Orthogonalized_X = orthogonal_var1,
+  Orthogonalized_Y = orthogonal_var2
+)
+
+# Create a pairs plot without histograms on the diagonal
+pairs_plot <- ggpairs(data_df, columns = 1:4, diag = list(continuous = "barDiag"))
+
+# Customize the diagonal cells to display histograms
+pairs_plot <- pairs_plot +
+  theme_bw() +
+  theme(axis.text.x = element_blank(), axis.text.y = element_blank())
+
+# Display the pairs plot
+print(pairs_plot)
+```
+
+------------------------------------------------------------------------
+
+# Appendix B. Causation and Correlation
+
+## Correlation
+
+1.  **Definition**: Correlation is a statistical relationship between
+two variables where changes in one variable are associated with
+changes in another variable. It measures the strength and direction
+of the association.
+
+The correlation coefficient (r) measures the strength and direction of
+the linear relationship between two variables X and Y. It ranges from -1
+to 1, with -1 indicating a perfect negative linear relationship, 1
+indicating a perfect positive linear relationship, and 0 indicating no
+linear relationship. The formula for calculating the correlation
+coefficient is:
+
+$$ r = \frac{1}{n-1} \sum_{i=1}^{n} \left(\frac{(X_i - \bar{X})}{s_X}\right) \left(\frac{(Y_i - \bar{Y})}{s_Y}\right) $$
+
+Where: - $X_i$ and $Y_i$ are individual data points. - $\bar{X}$ and
+$\bar{Y}$ are the means of X and Y, respectively. - $s_X$ and $s_Y$ are
+the standard deviations of X and Y, respectively. - n is the number of
+data points.
+
+2.  **Direction**: Correlation does not imply a directional
+relationship. It merely indicates that as one variable changes, the
+other tends to change in a consistent way.
+
+3.  **Causality Inference**: Correlation does not provide information
+about causality. Even when two variables are strongly correlated, it
+does not mean that one causes the other. They could be influenced by
+a common cause or involve complex interactions.
+
+4.  **Examples**: An increase in ice cream sales and an increase in
+drownings are positively correlated in the summer, but it doesn't
+mean that buying ice cream causes drownings.
+
+## Causation
+
+1.  **Definition**: Causality implies a cause-and-effect relationship
+between variables, where changes in one variable directly lead to
+changes in another variable.
+
+For example, a simple linear causal model might be represented as:
+
+$$ Y = aX + b + \epsilon $$
+
+Where: - Y represents the dependent variable. - X represents the
+independent variable. - a is the causal coefficient indicating the
+strength of the causal relationship. - b is a constant. - $\epsilon$
+represents the error term accounting for unexplained variance.
+
+2.  **Direction**: Causality specifies a clear direction of influence.
+One variable (the cause) affects the other (the effect).
+
+3.  **Causality Inference**: Establishing causality requires evidence
+beyond correlation. It involves demonstrating that changes in the
+independent variable precede and directly lead to changes in the
+dependent variable, while ruling out alternative explanations
+(confounding factors).
+
+4.  **Examples**: Administering a drug (independent variable) and
+observing a decrease in symptoms (dependent variable) can provide
+evidence of causality when properly controlled.
+
+## Why Correlation is Not Causation
+
+Correlation is not causation for several reasons:
+
+1.  **Confounding Variables**: Correlation does not account for the
+influence of confounding variables that might be responsible for the
+observed relationship. These variables can create a spurious
+correlation.
+
+2.  **Reverse Causation**: In some cases, the direction of causality may
+be reversed. A correlation does not reveal which variable is the
+cause and which is the effect.
+
+3.  **Coincidence**: Sometimes, variables may be correlated purely by
+coincidence without any causal relationship.
+
+## How to Overcome the Correlation-Causation Fallacy
+
+To overcome the correlation-causation fallacy and establish causality:
+
+1.  **Experimental Design**: Conduct controlled experiments when
+possible. Randomly assign participants to treatment and control
+groups to manipulate the independent variable.
+
+2.  **Longitudinal Studies**: Use longitudinal studies to track changes
+over time and establish temporal order between variables.
+
+3.  **Control for Confounding**: Identify and control for confounding
+variables using statistical techniques like regression analysis or
+matching.
+
+4.  **Instrumental Variables**: When randomization is not possible,
+consider instrumental variables that can act as proxies for
+causation.
+
+5.  **Replication**: Replicate findings across different studies or
+populations to increase confidence in causality.
+
+6.  **Counterfactual Analysis**: Compare the observed outcome with a
+counterfactual scenario to assess the impact of the independent
+variable.
+
+7.  **Expert Consultation**: Seek input from experts in your field to
+ensure your research design and analysis are rigorous.
+
+In summary, while correlation is a useful statistical measure for
+identifying associations between variables, it should not be used to
+infer causality. Establishing causality requires a more rigorous and
+systematic approach, taking into account factors like temporal order,
+experimental design, and the elimination of confounding variables.
