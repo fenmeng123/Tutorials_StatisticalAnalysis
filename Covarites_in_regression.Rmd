@@ -3,9 +3,6 @@ title: "Tutorial: Covariates in Statistical Analysis"
 author: "Kunru Song"
 date: "`r Sys.Date()`"
 output: 
-  html_notebook: 
-    toc: yes
-    toc_depth: 4
   html_document:
     toc: true
     toc_depth: 4
@@ -242,12 +239,13 @@ server <- function(input, output) {
     C <- orthogonal_matrix[,1]
     X_basis <- orthogonal_matrix[,2]
     
-    noise = rnorm(n, sd = input$noise_level)
+    X_noise = rnorm(n, sd = input$noise_level)
+    Y_noise = rnorm(n, sd = input$noise_level)
     
     for (i in seq_along(true_effect_C_X)) {
       if (input$noise_level > 0) {
-        X <- X_basis + true_effect_C_X[i] * C + noise
-        Y <- input$effect_X_Y * X + input$effect_C_Y * C + noise
+        X <- X_basis + true_effect_C_X[i] * C + X_noise
+        Y <- input$effect_X_Y * X + input$effect_C_Y * C + Y_noise
       } else {
         X <- X_basis + true_effect_C_X[i] * C
         Y <- input$effect_X_Y * X + input$effect_C_Y * C
@@ -271,9 +269,9 @@ server <- function(input, output) {
       geom_line(aes(y = Estimated_Effect_With_C, color = "With C"), linewidth = 1) +
       geom_line(aes(y = Estimated_Effect_Without_C, color = "Without C"), linewidth = 1) +
       geom_line(aes(y = input$effect_X_Y, color = "Ground Truth"), linetype = "dashed", linewidth = 1) +
-      labs(title = "Effect of Controlling Confounder (C) in Regression Model",
+      labs(title = "Controlling Confounder (C) in Regression Model",
            x = "True Effect of C to X",
-           y = "Estimated Effect of X to Y") +
+           y = "Estimated Beta (X -> Y)") +
       scale_color_manual(values = c("With C" = "blue", "Without C" = "red", "Ground Truth" = "black")) +
       theme_minimal()
     
@@ -395,16 +393,18 @@ server <- function(input, output) {
     set.seed(123)
     X_basis <- rnorm(n)
     Y_basis <- rnorm(n)
-    noise <- rnorm(n, sd = input$noise_level)
+    X_noise <- rnorm(n, sd = input$noise_level)
+    C_noise <- rnorm(n, sd = input$noise_level)
+    Y_noise <- rnorm(n, sd = input$noise_level) 
     orthogonal_matrix <- orthonormalization(cbind(X_basis,Y_basis), basis = FALSE, norm = TRUE)
     X_basis <- orthogonal_matrix[,1]
     Y_basis <- orthogonal_matrix[,2]
     
     for (i in seq_along(true_effect_X_C)) {
       if (input$noise_level > 0) {
-        X <- X_basis + noise
-        Y <- Y_basis + input$effect_X_Y * X + noise
-        C <- true_effect_X_C[i] * X + input$effect_Y_C * Y + noise
+        X <- X_basis + X_noise
+        Y <- Y_basis + input$effect_X_Y * X + Y_noise
+        C <- true_effect_X_C[i] * X + input$effect_Y_C * Y + C_noise
       } else {
         X <- X_basis
         Y <- Y_basis + input$effect_X_Y * X
@@ -429,9 +429,9 @@ server <- function(input, output) {
       geom_line(aes(y = Estimated_Effect_With_C, color = "With C"), linewidth = 1) +
       geom_line(aes(y = Estimated_Effect_Without_C, color = "Without C"), linewidth = 1) +
       geom_line(aes(y = input$effect_X_Y, color = "Ground Truth"), linetype = "dashed", linewidth = 1) +
-      labs(title = "Effect of Controlling Collider in Regression Model",
-           x = "True Effect of C to X",
-           y = "Estimated Effect of X to Y") +
+      labs(title = "Controlling Collider in Regression Model",
+           x = "True Effect of X to C",
+           y = "Estimated Beta (X -> Y)") +
       scale_color_manual(values = c("With C" = "blue", "Without C" = "red", "Ground Truth" = "black"),
                          guide = guide_legend(override.aes = list(linetype = c("dashed", "solid", "solid")))) +
       theme_minimal()
@@ -535,7 +535,7 @@ This process simulates the mediation effect, allowing us to investigate
 how the mediator variable $C$ influences the relationship between $X$
 and $Y$ with or without the presence of noise.
 
-```{r, Data Simulation-Mediator Effect, include=T, echo=F}
+```{r Data Simulation-Mediator Effect, include=T, echo=F}
 ui <- fluidPage(
   titlePanel("Interactive Plot with Graph"),
   sidebarLayout(
@@ -566,7 +566,9 @@ server <- function(input, output) {
     est_with_C <- numeric(length(true_effect_X_C))
     est_without_C <- numeric(length(true_effect_X_C))
     set.seed(123)
-    noise <- rnorm(n, sd = input$noise_level)
+    X_noise <- rnorm(n, sd = input$noise_level)
+    C_noise <- rnorm(n, sd = input$noise_level)
+    Y_noise <- rnorm(n, sd = input$noise_level)
     X_basis <- rnorm(n)
     C_basis <- rnorm(n)
     orthogonal_matrix <- far::orthonormalization(cbind(X_basis,C_basis), basis = FALSE, norm = TRUE)
@@ -575,9 +577,9 @@ server <- function(input, output) {
     
     for (i in seq_along(true_effect_X_C)) {
       if (input$noise_level > 0) {
-        X <- X_basis + noise
-        C <- C_basis + true_effect_X_C[i] * X + noise
-        Y <- input$effect_C_Y * C + input$effect_X_Y * X +  noise
+        X <- X_basis + X_noise
+        C <- C_basis + true_effect_X_C[i] * X + C_noise
+        Y <- input$effect_C_Y * C + input$effect_X_Y * X +  Y_noise
       } else {
         X <- X_basis
         C <- C_basis + true_effect_X_C[i] * X
@@ -603,8 +605,8 @@ server <- function(input, output) {
       geom_line(aes(y = Estimated_Effect_With_C, color = "With C"), linewidth = 1) +
       geom_line(aes(y = Estimated_Effect_Without_C, color = "Without C"), linewidth = 1) +
       geom_line(aes(y = True_effect_X_Y, color = "Ground Truth"), linetype = "dashed", linewidth = 1) +
-      labs(title = "Effect of Controlling Mediator in Regression Model",
-           x = "True Effect of C to X",
+      labs(title = "Controlling Mediator in Regression Model",
+           x = "True Effect of X to C",
            y = "Estimated Effect of X to Y") +
       scale_color_manual(values = c("With C" = "blue", "Without C" = "red", "Ground Truth" = "black"),
                          guide = guide_legend(override.aes = list(linetype = c("dashed", "solid", "solid")))) +
@@ -740,7 +742,7 @@ all of the effects of the covariate on the dependent variable².
 
 2. Hover over each bar to see the specific adjusted R-squared value for that model.
 
-```{r,Residualization,include=T,echo=F,message=F,warning=F}
+```{r Residualization,include=T,echo=F,message=F,warning=F}
 # Define the UI for the Shiny app
 ui <- fluidPage(
   titlePanel("Covariance Exploration"),
@@ -917,7 +919,7 @@ Now, let's delve into the complex relationships among these variables:
 
 Let's create an updated DAG to visualize these complex relationships using the R package igraph. This DAG will include the relationships described above:
 
-``` {r, DAG justification for JAACAP paper}
+``` {r DAG justification for JAACAP paper, echo = F}
 # Load the igraph library
 library(igraph)
 
@@ -969,7 +971,33 @@ This  DAG visualizes the complex relationships among the variables and covariate
 
 ## Assisting Covariates Identification by R package 'chest'
 
-```{r, include=T,echo=F}
+### Data Generation Process
+
+1. **Setting the Seed:** The process starts by setting a seed (in this case, `set.seed(123)`) to ensure that the generated data is reproducible.
+
+2. **Defining Parameters:** The number of observations (`n`) and means for each variable are defined. In this example, there are 11 variables, and their means are all set to zero.
+
+3. **Creating a Covariance Matrix:** A covariance matrix (`cov_matrix`) is created with dimensions 11x11. Initially, all elements are set to zero.
+
+4. **Setting Diagonal Elements:** The diagonal elements of the covariance matrix are set to 1. These represent the variances of the variables.
+
+5. **Specifying Covariances:** Specific covariances between variables are specified by modifying elements of the covariance matrix. For example, `cov_matrix[1, 2]` represents the covariance between the first variable (SMA) and the second variable (Developmental_Measures). These covariances are adjusted based on your requirements.
+
+6. **Symmetrizing the Matrix:** To ensure the covariance matrix is symmetric (as required by covariance matrices), it is symmetrized by adding its transpose to itself while subtracting the diagonal.
+
+7. **Generating Correlated Data:** Using the 'MASS' package's `mvrnorm` function, correlated data is generated. This function generates random multivariate data with the specified means and covariance matrix. The generated data has 11 variables corresponding to the defined means and covariances.
+
+8. **Assigning Variable Names:** The column names of the generated data are assigned based on the variables, such as "SMA," "Developmental_Measures," "Age," and so on.
+
+### Behind the Output Plot
+
+The output plot generated by the provided R code snippet displays the results of including a new covariate in our linear regression model. Here's what happens behind the scenes:
+
+1. **Covariate Selection:** The primary goal is to identify which covariates (independent variables) have the most influence on the dependent variable "Developmental_Measures" when regressed against the independent variable "SMA" (screen time).
+
+2. **Covariate Selection Method:** The 'chest' package is used to perform linear regression. 
+
+```{r Example about R package chest, include=T,echo=F}
 # Set the seed for reproducibility
 set.seed(123)
 
@@ -1011,14 +1039,36 @@ library(chest)
 outcome_variable <- "Developmental_Measures"
 predictor_variables <- c("Age", "Gender", "Race", "Ethnicity", "Marital", "Education", "Income", "Size", "Structure")
 
-# Perform LASSO regression for covariate selection
+# Perform linear regression for covariate selection
 results <- chest_lm(crude = "Developmental_Measures ~ SMA",
                         xlist = predictor_variables,
                         data = df)
 chest_plot(results)
 ```
 
-```{r, include=T,echo=F,warning=FALSE,message=FALSE}
+### Interactive Chest Plot
+
+This interactiv plot allows you to explore covariate identification using the R package 'chest' with an interactive plot. You can dynamically adjust the sample size and customize the covariance matrix to see how it impacts the selection of covariates. Here's how to use it:
+
+1. **Sample Size Slider:** Start by adjusting the "Sample Size" slider. You can change the number of observations in your dataset by dragging the slider left or right. This will determine the size of the dataset used for analysis.
+
+2. **Covariance Matrix Input:** Below the sample size slider, you will see a matrix where you can input custom covariance values. This matrix represents the relationships between different variables in your dataset. You can manually change the values to create different covariance structures. Here's how:
+
+   - **Entering Custom Covariance Values:** Click on any cell in the matrix and type a numeric value. This value represents the covariance between the corresponding variables. For example, you can specify the covariance between "SMA" and "Developmental_Measures" by changing the (1, 2) cell.
+
+   - **Understanding the Diagonal:** The diagonal of the matrix represents the variances of each variable and is automatically set to 1. You don't need to modify these values.
+
+   - **Symmetric Matrix:** Remember that covariance matrices should be symmetric. As you enter values, the app will ensure that the matrix remains symmetric.
+
+3. **Update Data Button:** Once you've adjusted the sample size and covariance matrix values, click the "Update Data" button. This action triggers the recalculation of covariate selection based on the modified dataset.
+
+4. **Interactive Plot:** After clicking "Update Data," you'll see an interactive plot displayed in the main panel. This plot shows the results of covariate selection using LASSO regression. You can interact with the plot in the following ways:
+
+   - **Variable Importance:** The plot displays coefficients for different covariates on the x-axis. Positive coefficients indicate a positive relationship with the dependent variable "Developmental_Measures," while negative coefficients indicate a negative relationship. The magnitude of coefficients reflects the strength of the relationship.
+
+   - **Dynamic Updates:** Feel free to further adjust the sample size or covariance matrix values and click "Update Data" again to observe how these changes impact covariate selection.
+
+```{r Interactive chest plot, include=T,echo=F,warning=FALSE,message=FALSE}
 library(shiny)
 library(MASS)
 library(chest)
@@ -1027,7 +1077,7 @@ library(Matrix)
 
 # Define UI
 ui <- fluidPage(
-  titlePanel("Covariate Selection with LASSO"),
+  titlePanel("Covariate Identification Using R package chest"),
   sidebarLayout(
     sidebarPanel(
       sliderInput("sample_size", "Sample Size", min = 100, max = 2000, value = 1000),
@@ -1258,7 +1308,7 @@ We can generate two Gaussian variables with some covariance among them.
 And then, performing the Gram-Schmidt orthogonalization process. Here's
 how you can do it in R:
 
-```{r, Gram-Schmidt Orthogonalization,message=F,warning=F}
+```{r Gram-Schmidt Orthogonalization,message=F,warning=F}
 library(far)
 # Generate two correlated Gaussian variables
 set.seed(123)
@@ -1274,7 +1324,7 @@ orthogonal_var2 <- orthogonal_matrix[, 2]
 Let us see what happened after Gram-Schmidt orthogonalization by
 comparing the perason's correlation coefficient.
 
-```{r, visualizing orthogonalization effects,echo = F, warning=F,message=F}
+```{r visualizing orthogonalization effects,echo = F, warning=F,message=F}
 # Load the necessary library for pairs plot
 library(GGally)
 # Create a data frame with raw and orthogonalized data
